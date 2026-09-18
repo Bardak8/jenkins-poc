@@ -18,6 +18,20 @@ pipeline {
         }
     }
 
+    parameters {
+        booleanParam(name: 'RECREATE', defaultValue: false, description: 'Détruit la VM demo avant de la recréer from scratch')
+    }
+
+    environment {
+        TF_VARS = '''
+            -var="proxmox_endpoint=https://139.99.130.72:8006" \
+            -var="proxmox_node=ns536329" \
+            -var="debian_template_id=9001" \
+            -var="ssh_public_key=ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIB9YhnWF0+Vu4vn71+kGoZPoDxlbnvMAQiFOjUBa1zgk maxime@maxime-Precision-5690" \
+            -var="demo_vm_count=1"
+        '''
+    }
+
     stages {
         stage('Terraform Init') {
             steps {
@@ -27,18 +41,24 @@ pipeline {
             }
         }
 
+        stage('Terraform Destroy') {
+            when {
+                expression { params.RECREATE }
+            }
+            steps {
+                withCredentials([string(credentialsId: 'proxmox-api-token', variable: 'PROXMOX_VE_API_TOKEN')]) {
+                    dir('target-infra/vms/demo') {
+                        sh "terraform destroy -auto-approve ${TF_VARS}"
+                    }
+                }
+            }
+        }
+
         stage('Terraform Apply') {
             steps {
                 withCredentials([string(credentialsId: 'proxmox-api-token', variable: 'PROXMOX_VE_API_TOKEN')]) {
                     dir('target-infra/vms/demo') {
-                        sh '''
-                            terraform apply -auto-approve \
-                              -var="proxmox_endpoint=https://139.99.130.72:8006" \
-                              -var="proxmox_node=ns536329" \
-                              -var="debian_template_id=9001" \
-                              -var="ssh_public_key=ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIB9YhnWF0+Vu4vn71+kGoZPoDxlbnvMAQiFOjUBa1zgk maxime@maxime-Precision-5690" \
-                              -var="demo_vm_count=1"
-                        '''
+                        sh "terraform apply -auto-approve ${TF_VARS}"
                     }
                 }
             }
