@@ -1,0 +1,5 @@
+# Copier ce fichier en terraform.tfvars (gitignoré) et renseigner vos valeurs
+# (les mêmes project_id/cluster_id que infra/jenkins/terraform.tfvars).
+
+project_id = "PASTE_THE_ISOLATED_PROJECT_ID_HERE"
+cluster_id = "PASTE_THE_EXISTING_CLUSTER_ID_HERE"

@@ -1,0 +1,5 @@
+proxmox_endpoint = "https://IP_PUBLIQUE_OU_PRIVEE_KS3:8006"
+proxmox_node     = "pve"
+
+debian_template_id = 9001
+ssh_public_key      = "ssh-ed25519 AAAA... commentaire"

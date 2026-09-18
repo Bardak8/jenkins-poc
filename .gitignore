@@ -1,0 +1,25 @@
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+crash.*.log
+# .terraform.lock.hcl volontairement suivi par git (versions de providers reproductibles)
+
+# Environnement local (chemins spécifiques à la machine)
+.envrc
+
+# Secrets / accès
+*.pem
+*.key
+id_*
+!*.pub
+kubeconfig*
+wireguard/**/privatekey*
+wireguard/**/*.conf
+!wireguard/**/*.conf.example
+
+# Divers
+.DS_Store
