@@ -1,0 +1,89 @@
+pipeline {
+    agent {
+        kubernetes {
+            yaml '''
+                apiVersion: v1
+                kind: Pod
+                spec:
+                  containers:
+                  - name: deploy
+                    image: alpine:3.20
+                    command: ["cat"]
+                    tty: true
+                    securityContext:
+                      capabilities:
+                        add: ["NET_ADMIN"]
+                    volumeMounts:
+                    - name: wireguard-config
+                      mountPath: /etc/wireguard-secret
+                      readOnly: true
+                    - name: ssh-key
+                      mountPath: /root/.ssh-secret
+                      readOnly: true
+                  volumes:
+                  - name: wireguard-config
+                    secret:
+                      secretName: deploy-wireguard
+                  - name: ssh-key
+                    secret:
+                      secretName: deploy-ssh-key
+                      defaultMode: 0400
+            '''
+            defaultContainer 'deploy'
+        }
+    }
+
+    environment {
+        DEMO_VM_IP = '192.168.1.5'
+    }
+
+    stages {
+        stage('Préparer les outils') {
+            steps {
+                sh 'apk add --no-cache wireguard-tools openssh-client'
+            }
+        }
+
+        stage('Monter le tunnel') {
+            steps {
+                sh '''
+                    mkdir -p /etc/wireguard
+                    cp /etc/wireguard-secret/wg0.conf /etc/wireguard/wg0.conf
+                    chmod 600 /etc/wireguard/wg0.conf
+                    wg-quick up wg0
+                '''
+            }
+        }
+
+        stage('Déployer node_exporter') {
+            steps {
+                sh '''
+                    mkdir -p /root/.ssh
+                    cp /root/.ssh-secret/id_ed25519 /root/.ssh/id_ed25519
+                    chmod 600 /root/.ssh/id_ed25519
+
+                    ssh -o StrictHostKeyChecking=no -i /root/.ssh/id_ed25519 admin@$DEMO_VM_IP '
+                        sudo apt-get update &&
+                        sudo apt-get install -y prometheus-node-exporter &&
+                        sudo systemctl enable --now prometheus-node-exporter
+                    '
+                '''
+            }
+        }
+
+        stage('Vérifier') {
+            steps {
+                sh '''
+                    ssh -o StrictHostKeyChecking=no -i /root/.ssh/id_ed25519 admin@$DEMO_VM_IP \
+                        'curl -s localhost:9100/metrics | head -5'
+                '''
+            }
+        }
+    }
+
+    post {
+        always {
+            sh 'wg-quick down wg0 || true'
+        }
+    }
+}

@@ -1,11 +1,3 @@
-# Déploiement de Jenkins via le chart Helm officiel jenkinsci/jenkins,
-# entièrement configuré en code (JCasC + Job DSL). Aucune installation
-# manuelle de plugin, aucune création de job dans l'UI : tout part d'ici.
-#
-# Module isolé : un destroy/apply ici ne touche jamais au module
-# monitoring/ (state Terraform séparé), ce qui permet de tester la
-# reconstruction de Jenkins seul sans perdre l'observabilité du PoC.
-
 locals {
   seed_job_script = templatefile("${path.module}/jobs/seed-job.groovy.tpl", {
     git_repo_url       = var.git_repo_url
@@ -30,6 +22,7 @@ resource "helm_release" "jenkins" {
       controller = {
         numExecutors = 2
         jenkinsUrl   = var.jenkins_url
+        serviceType  = var.jenkins_service_type
         installPlugins = [
           "configuration-as-code",
           "job-dsl",

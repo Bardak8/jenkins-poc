@@ -13,8 +13,6 @@ terraform {
   }
 }
 
-# State Terraform séparé du module jenkins/ : un destroy/apply ici ne
-# touche jamais au contrôleur Jenkins, et vice versa.
 provider "scaleway" {
   project_id = var.project_id
   region     = var.region

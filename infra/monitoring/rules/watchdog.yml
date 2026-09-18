@@ -1,8 +1,3 @@
-# Repris de prometheus/alerts/watchdog.yml du dépôt Monitoring-Blagnac
-# (projet réel Peopulse) : le pattern "deadman's switch", un signal positif
-# émis en continu dont la disparition est elle-même détectable, plutôt que
-# de supposer l'absence d'alerte comme absence d'incident. Préfixe des
-# métriques adapté (jenkins_poc_ au lieu de blagnac_) au nouveau contexte.
 groups:
   - name: watchdog
     interval: 30s

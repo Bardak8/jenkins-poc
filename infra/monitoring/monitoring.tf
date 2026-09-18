@@ -1,15 +1,4 @@
-# Stack de monitoring du PoC lui-même (observabilité du cluster Jenkins),
-# dans un namespace séparé de Jenkins ET dans un state Terraform séparé
-# du module jenkins/ — un destroy/apply sur l'un n'affecte jamais l'autre.
-# Déployée une fois, pas destinée à être détruite/recréée comme test de
-# reconstruction (contrairement à Jenkins).
-#
-# Reprend les mêmes outils que le projet réel (Prometheus, Alertmanager,
-# Grafana), dimensionnés pour un nœud unique partagé avec Jenkins.
-
 locals {
-  # Règles d'alerte reprises et adaptées du dépôt Monitoring-Blagnac réel
-  # (voir rules/*.yml pour le détail des adaptations).
   additional_rules = {
     nodes    = yamldecode(file("${path.module}/rules/nodes.yml"))
     watchdog = yamldecode(file("${path.module}/rules/watchdog.yml"))
@@ -26,8 +15,6 @@ resource "helm_release" "monitoring" {
 
   values = [
     yamlencode({
-      # Pas de stockage persistant pour ce PoC : rétention courte,
-      # en mémoire du pod, pas de Block Storage supplémentaire à payer.
       prometheus = {
         prometheusSpec = {
           retention = "6h"
@@ -51,9 +38,6 @@ resource "helm_release" "monitoring" {
           requests = { cpu = "50m", memory = "128Mi" }
           limits   = { cpu = "200m", memory = "256Mi" }
         }
-        # Mot de passe admin auto-généré par le chart dans un Secret
-        # Kubernetes — jamais en clair ici. Récupération : voir output
-        # grafana_admin_password_command.
         persistence = { enabled = false }
       }
       kubeStateMetrics = {

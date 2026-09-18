@@ -1,18 +1,5 @@
-# Sauvegarde du volume Jenkins (build history, workspace), pour fermer
-# le trou de RPO sur le scénario "perte totale du cluster" : sans ça,
-# seule la configuration (JCasC, jobs) est reconstructible depuis le
-# dépôt, l'historique de build serait perdu.
-#
-# Solution native, sans outil tiers : le cluster expose déjà les CRD
-# VolumeSnapshot et une classe scw-snapshot-retain (politique Retain,
-# le snapshot survit même si le PVC ou le pod source est supprimé —
-# donc même si infra/jenkins/ est détruit pour le test de reconstruction
-# du README, les snapshots pris avant restent disponibles).
-# Un CronJob léger (kubectl + un peu de shell) déclenche un snapshot
-# quotidien et purge les plus anciens au-delà de la rétention.
-
 locals {
-  jenkins_backup_retention_count = 7 # nombre de snapshots conservés (jours)
+  jenkins_backup_retention_count = 7
 }
 
 resource "kubernetes_service_account" "jenkins_backup" {
@@ -67,7 +54,7 @@ resource "kubernetes_cron_job_v1" "jenkins_backup" {
   }
 
   spec {
-    schedule                      = "0 3 * * *" # tous les jours à 3h
+    schedule                      = "0 3 * * *"
     successful_jobs_history_limit = 3
     failed_jobs_history_limit     = 3
 
@@ -104,7 +91,6 @@ resource "kubernetes_cron_job_v1" "jenkins_backup" {
                 EOF
                 echo "Snapshot $NAME créé."
 
-                # Purge : ne garde que les N plus récents (par date de création).
                 kubectl -n ci-cd get volumesnapshot -l app=jenkins-backup \
                   --sort-by=.metadata.creationTimestamp -o name \
                   | head -n -${local.jenkins_backup_retention_count} \

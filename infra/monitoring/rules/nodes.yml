@@ -1,8 +1,3 @@
-# Repris et adapté de prometheus/alerts/nodes.yml du dépôt Monitoring-Blagnac
-# (projet réel Peopulse). Logique inchangée, seul le sélecteur de job change :
-# la version Blagnac cible des exporters Docker Compose (proxmox-nodes,
-# debian_server), ici on cible le node-exporter embarqué par le chart
-# kube-prometheus-stack sur les nœuds du cluster.
 groups:
   - name: nodes
     rules:

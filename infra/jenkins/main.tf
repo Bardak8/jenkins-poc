@@ -17,13 +17,6 @@ terraform {
   }
 }
 
-# Credentials Scaleway attendues via variables d'environnement
-# (SCW_ACCESS_KEY, SCW_SECRET_KEY, ou SCW_PROFILE pour un profil nommé),
-# jamais en dur dans ce dépôt. project_id doit pointer explicitement vers
-# le projet Scaleway dédié et isolé créé pour ce PoC.
-#
-# State Terraform séparé du module monitoring/ : un destroy/apply ici
-# ne touche jamais à la stack de monitoring, et vice versa.
 provider "scaleway" {
   project_id = var.project_id
   region     = var.region
