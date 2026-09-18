@@ -10,6 +10,9 @@ pipeline {
                     image: hashicorp/terraform:1.15
                     command: ["cat"]
                     tty: true
+                    envFrom:
+                    - secretRef:
+                        name: tfstate-credentials
             '''
             defaultContainer 'terraform'
         }
