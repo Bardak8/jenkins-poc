@@ -15,7 +15,7 @@ resource "proxmox_virtual_environment_vm" "demo" {
   }
 
   memory {
-    dedicated = 2048
+    dedicated = 4096
   }
 
   disk {
