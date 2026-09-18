@@ -12,7 +12,7 @@ Support de démonstration pour l'oral du Bloc 5 (RNCP Expert en architecture des
 | `target-infra/vms/demo/` | VM(s) `demo` (créées par Jenkins, state séparé) |
 | `deploy/Jenkinsfile.provision` | Pipeline `provision-demo-vm` (Terraform, menus réactifs ROLE/TARGET) |
 | `deploy/Jenkinsfile.monitoring` | Pipeline `deploy-monitoring` (node_exporter sur demo-0, fixe) |
-| `deploy/Jenkinsfile.app` | Pipeline `deploy-app` (Traefik + site sur demo-1 et suivantes) |
+| `deploy/Jenkinsfile.app` | Pipeline `deploy-app` (détecte les VM app en direct, menu de choix en cours de run) |
 | `deploy/app/` | `docker-compose.yml` + `index.html` de l'appli de démo |
 | `wireguard/` | Clés WireGuard (gitignorées) |
 

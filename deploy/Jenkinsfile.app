@@ -33,14 +33,6 @@ pipeline {
         }
     }
 
-    parameters {
-        string(name: 'VM_COUNT', defaultValue: '2', description: 'Nombre total de VM demo provisionnées (doit correspondre au pipeline provision-demo-vm)')
-    }
-
-    environment {
-        DEMO_IP_START = '5'
-    }
-
     stages {
         stage('Préparer les outils') {
             steps {
@@ -59,6 +51,36 @@ pipeline {
             }
         }
 
+        stage('Découvrir les cibles') {
+            steps {
+                script {
+                    def targets = []
+                    for (i = 1; i <= 4; i++) {
+                        def ip = "192.168.1.${5 + i}"
+                        def alive = sh(script: "ping -c1 -W1 ${ip} > /dev/null 2>&1", returnStatus: true) == 0
+                        if (alive) {
+                            targets << ip
+                        }
+                    }
+                    if (targets.isEmpty()) {
+                        error('Aucune VM app détectée (192.168.1.6 à .9 injoignables). Lance provision-demo-vm avec ROLE=app avant.')
+                    }
+                    env.AVAILABLE_TARGETS = targets.join('\n')
+                }
+            }
+        }
+
+        stage('Choisir la cible') {
+            steps {
+                script {
+                    env.TARGET_IP = input(
+                        message: 'VM app détectées en direct, laquelle déployer ?',
+                        parameters: [choice(name: 'TARGET_IP', choices: env.AVAILABLE_TARGETS, description: '')]
+                    )
+                }
+            }
+        }
+
         stage('Déployer Traefik + site') {
             steps {
                 sh '''
@@ -66,26 +88,22 @@ pipeline {
                     cp /root/.ssh-secret/id_ed25519 /root/.ssh/id_ed25519
                     chmod 600 /root/.ssh/id_ed25519
 
-                    for i in $(seq 1 $((VM_COUNT - 1))); do
-                        ip="192.168.1.$((DEMO_IP_START + i))"
+                    ssh -o StrictHostKeyChecking=no -i /root/.ssh/id_ed25519 admin@$TARGET_IP '
+                        sudo apt-get update &&
+                        sudo apt-get install -y docker.io docker-compose rsync &&
+                        sudo mkdir -p /opt/app &&
+                        mkdir -p /tmp/app
+                    '
 
-                        ssh -o StrictHostKeyChecking=no -i /root/.ssh/id_ed25519 admin@$ip '
-                            sudo apt-get update &&
-                            sudo apt-get install -y docker.io docker-compose rsync &&
-                            sudo mkdir -p /opt/app &&
-                            mkdir -p /tmp/app
-                        '
+                    rsync -e "ssh -o StrictHostKeyChecking=no -i /root/.ssh/id_ed25519" -a \
+                        deploy/app/docker-compose.yml deploy/app/index.html \
+                        admin@$TARGET_IP:/tmp/app/
 
-                        rsync -e "ssh -o StrictHostKeyChecking=no -i /root/.ssh/id_ed25519" -a \
-                            deploy/app/docker-compose.yml deploy/app/index.html \
-                            admin@$ip:/tmp/app/
-
-                        ssh -o StrictHostKeyChecking=no -i /root/.ssh/id_ed25519 admin@$ip '
-                            sudo cp /tmp/app/* /opt/app/ &&
-                            cd /opt/app &&
-                            sudo docker-compose up -d
-                        '
-                    done
+                    ssh -o StrictHostKeyChecking=no -i /root/.ssh/id_ed25519 admin@$TARGET_IP '
+                        sudo cp /tmp/app/* /opt/app/ &&
+                        cd /opt/app &&
+                        sudo docker-compose up -d
+                    '
                 '''
             }
         }
@@ -93,10 +111,7 @@ pipeline {
         stage('Vérifier') {
             steps {
                 sh '''
-                    for i in $(seq 1 $((VM_COUNT - 1))); do
-                        ip="192.168.1.$((DEMO_IP_START + i))"
-                        ssh -o StrictHostKeyChecking=no -i /root/.ssh/id_ed25519 admin@$ip 'curl -s localhost:80 | head -5'
-                    done
+                    ssh -o StrictHostKeyChecking=no -i /root/.ssh/id_ed25519 admin@$TARGET_IP 'curl -s localhost:80 | head -5'
                 '''
             }
         }
