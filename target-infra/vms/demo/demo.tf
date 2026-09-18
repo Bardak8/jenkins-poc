@@ -33,7 +33,7 @@ resource "proxmox_virtual_environment_vm" "demo" {
 
     ip_config {
       ipv4 {
-        address = "192.168.1.5/24"
+        address = "192.168.1.${var.demo_ip_start + count.index}/24"
         gateway = "192.168.1.1"
       }
     }

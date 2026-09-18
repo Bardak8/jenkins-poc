@@ -46,3 +46,9 @@ variable "demo_vmid_start" {
   type        = number
   default     = 300
 }
+
+variable "demo_ip_start" {
+  description = "Dernier octet IPv4 de la première VM de démo (incrémenté par VM)"
+  type        = number
+  default     = 5
+}

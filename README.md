@@ -10,8 +10,10 @@ Support de démonstration pour l'oral du Bloc 5 (RNCP Expert en architecture des
 | `infra/monitoring/` | kube-prometheus-stack (Prometheus/Alertmanager/Grafana) |
 | `target-infra/vms/outillage/` | VM `outillage` (tunnel WireGuard, bootstrap manuel) |
 | `target-infra/vms/demo/` | VM(s) `demo` (créées par Jenkins, state séparé) |
-| `deploy/Jenkinsfile.provision` | Pipeline `provision-demo-vm` |
-| `deploy/Jenkinsfile.deploy` | Pipeline `deploy-node-exporter` |
+| `deploy/Jenkinsfile.provision` | Pipeline `provision-demo-vm` (Terraform : crée/remplace les VM demo) |
+| `deploy/Jenkinsfile.monitoring` | Pipeline `deploy-monitoring` (node_exporter sur demo-0, fixe) |
+| `deploy/Jenkinsfile.app` | Pipeline `deploy-app` (Traefik + site sur demo-1 et suivantes) |
+| `deploy/app/` | `docker-compose.yml` + `index.html` de l'appli de démo |
 | `wireguard/` | Clés WireGuard (gitignorées) |
 
 `infra/jenkins/` et `infra/monitoring/` ont chacun leur propre state Terraform.
@@ -34,7 +36,7 @@ SCW_PROFILE=newprofile terraform apply
 - Port forward WAN UDP 51820 → VM outillage.
 - Tunnel WireGuard permanent : passerelle (cluster Scaleway) ↔ VM outillage.
 - Tunnel éphémère dédié au pipeline de déploiement (peer distinct).
-- VM démo en IP statique `192.168.1.5`.
+- VM(s) démo en IP statique à partir de `192.168.1.5` : `demo-0` (`.5`) porte le monitoring, `demo-1`+ (`.6`, `.7`, ...) portent l'appli de démo.
 
 ## Test de reconstruction
 
@@ -48,5 +50,6 @@ Jenkins doit revenir dans le même état (plugins, JCasC, jobs) sans action manu
 
 ## Points ouverts
 
-- Relais socat passerelle → Grafana (métriques node_exporter de la VM démo)
+- Relais socat passerelle → Grafana (métriques node_exporter de `demo-0`)
+- Accès navigateur au site de démo (`demo-1`+, port 80) : à faire via le tunnel WireGuard ou un accès réseau vers `192.168.1.0/24`
 - LoadBalancer Jenkins : `-var="jenkins_service_type=LoadBalancer"`, à repasser en `ClusterIP` après usage
