@@ -46,4 +46,8 @@ resource "proxmox_virtual_environment_vm" "demo" {
 
   started = true
   on_boot = true
+
+  lifecycle {
+    ignore_changes = [clone]
+  }
 }
