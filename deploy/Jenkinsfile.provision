@@ -18,20 +18,6 @@ pipeline {
         }
     }
 
-    parameters {
-        string(name: 'VM_COUNT', defaultValue: '2', description: 'Nombre total de VM de démo (demo-0 = monitoring, demo-1+ = appli)')
-        string(name: 'REPLACE_INDEX', defaultValue: '', description: 'Index de VM à recréer from scratch, ex: 1 (vide = aucune)')
-    }
-
-    environment {
-        TF_VARS = '''
-            -var="proxmox_endpoint=https://139.99.130.72:8006" \
-            -var="proxmox_node=ns536329" \
-            -var="debian_template_id=9001" \
-            -var="ssh_public_key=ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIB9YhnWF0+Vu4vn71+kGoZPoDxlbnvMAQiFOjUBa1zgk maxime@maxime-Precision-5690"
-        '''
-    }
-
     stages {
         stage('Terraform Init') {
             steps {
@@ -46,10 +32,29 @@ pipeline {
                 withCredentials([string(credentialsId: 'proxmox-api-token', variable: 'PROXMOX_VE_API_TOKEN')]) {
                     dir('target-infra/vms/demo') {
                         script {
-                            def replaceFlag = params.REPLACE_INDEX?.trim()
-                                ? "-replace=proxmox_virtual_environment_vm.demo[${params.REPLACE_INDEX}]"
-                                : ''
-                            sh "terraform apply -auto-approve ${TF_VARS} -var=demo_vm_count=${params.VM_COUNT} ${replaceFlag}"
+                            def targetIndex = (params.ROLE == 'app') ? params.TARGET.toInteger() : 0
+
+                            def currentCount = sh(
+                                script: "terraform state list | grep -c 'proxmox_virtual_environment_vm.demo\\[' || true",
+                                returnStdout: true
+                            ).trim().toInteger()
+
+                            def newCount = Math.max(currentCount, targetIndex + 1)
+
+                            def args = [
+                                'terraform apply -auto-approve',
+                                '-var="proxmox_endpoint=https://139.99.130.72:8006"',
+                                '-var="proxmox_node=ns536329"',
+                                '-var="debian_template_id=9001"',
+                                '-var="ssh_public_key=ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIB9YhnWF0+Vu4vn71+kGoZPoDxlbnvMAQiFOjUBa1zgk maxime@maxime-Precision-5690"',
+                                "-var=demo_vm_count=${newCount}",
+                            ]
+
+                            if (params.REPLACE) {
+                                args << "-replace=proxmox_virtual_environment_vm.demo[${targetIndex}]"
+                            }
+
+                            sh args.join(' ')
                         }
                     }
                 }

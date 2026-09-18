@@ -10,13 +10,15 @@ Support de démonstration pour l'oral du Bloc 5 (RNCP Expert en architecture des
 | `infra/monitoring/` | kube-prometheus-stack (Prometheus/Alertmanager/Grafana) |
 | `target-infra/vms/outillage/` | VM `outillage` (tunnel WireGuard, bootstrap manuel) |
 | `target-infra/vms/demo/` | VM(s) `demo` (créées par Jenkins, state séparé) |
-| `deploy/Jenkinsfile.provision` | Pipeline `provision-demo-vm` (Terraform : crée/remplace les VM demo) |
+| `deploy/Jenkinsfile.provision` | Pipeline `provision-demo-vm` (Terraform, menus réactifs ROLE/TARGET) |
 | `deploy/Jenkinsfile.monitoring` | Pipeline `deploy-monitoring` (node_exporter sur demo-0, fixe) |
 | `deploy/Jenkinsfile.app` | Pipeline `deploy-app` (Traefik + site sur demo-1 et suivantes) |
 | `deploy/app/` | `docker-compose.yml` + `index.html` de l'appli de démo |
 | `wireguard/` | Clés WireGuard (gitignorées) |
 
 `infra/jenkins/` et `infra/monitoring/` ont chacun leur propre state Terraform.
+
+`provision-demo-vm` s'utilise via deux menus déroulants (plugin Active Choices) : `ROLE` (`monitoring` ou `app`), puis `TARGET` qui ne propose une VM à choisir (`1` à `4`) que si `ROLE=app` (`monitoring` cible toujours `demo-0`). La case `REPLACE` détruit et recrée la VM ciblée ; décochée, le pipeline s'assure juste qu'elle existe.
 
 ## Prérequis
 

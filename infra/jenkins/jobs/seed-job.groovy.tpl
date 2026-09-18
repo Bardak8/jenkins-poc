@@ -17,6 +17,12 @@ pipelineJob('provision-demo-vm') {
         }
     }
 
+    parameters {
+        choiceParam('ROLE', ['monitoring', 'app'], 'Type de VM à provisionner')
+        choiceParam('TARGET', ['1', '2', '3', '4'], 'VM ciblée (app uniquement, ignoré si ROLE=monitoring)')
+        booleanParam('REPLACE', false, 'Détruit et recrée la VM ciblée plutôt que de simplement s\'assurer qu\'elle existe')
+    }
+
     properties {
         pipelineTriggers {
             triggers {
