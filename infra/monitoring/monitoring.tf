@@ -45,6 +45,14 @@ resource "helm_release" "monitoring" {
         service = {
           type = var.grafana_service_type
         }
+        additionalDataSources = [
+          {
+            name   = "Demo-0 Prometheus"
+            type   = "prometheus"
+            url    = "http://gateway.ci-cd.svc.cluster.local:9090"
+            access = "proxy"
+          }
+        ]
         resources = {
           requests = { cpu = "50m", memory = "128Mi" }
           limits   = { cpu = "200m", memory = "256Mi" }

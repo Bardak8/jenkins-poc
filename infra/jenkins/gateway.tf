@@ -60,6 +60,7 @@ resource "kubernetes_deployment" "gateway" {
             wg-quick up wg0
             socat TCP-LISTEN:8006,fork,reuseaddr TCP:${var.proxmox_lan_ip}:8006 &
             socat TCP-LISTEN:9100,fork,reuseaddr TCP:192.168.1.5:9100 &
+            socat TCP-LISTEN:9090,fork,reuseaddr TCP:192.168.1.5:9090 &
             tail -f /dev/null
             EOT
           ]
@@ -109,6 +110,12 @@ resource "kubernetes_service" "gateway" {
       name        = "node-exporter"
       port        = 9100
       target_port = 9100
+    }
+
+    port {
+      name        = "demo-prometheus"
+      port        = 9090
+      target_port = 9090
     }
   }
 }
