@@ -29,5 +29,5 @@ variable "monitoring_chart_version" {
 variable "grafana_service_type" {
   description = "Type du service Kubernetes exposant Grafana"
   type        = string
-  default     = "ClusterIP"
+  default     = "LoadBalancer"
 }

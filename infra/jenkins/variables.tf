@@ -86,7 +86,7 @@ variable "proxmox_api_token" {
 variable "jenkins_service_type" {
   description = "Type du service Kubernetes exposant Jenkins"
   type        = string
-  default     = "ClusterIP"
+  default     = "LoadBalancer"
 }
 
 variable "jenkins_url" {

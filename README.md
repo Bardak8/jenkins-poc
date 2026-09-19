@@ -64,7 +64,7 @@ SCW_PROFILE=newprofile terraform apply
 | `infra/monitoring` (Prometheus) | Service `gateway.ci-cd.svc.cluster.local` | TCP/9100 | Scrape node_exporter de `demo-0` via relais socat | Existant |
 | Jenkins (tous pipelines) | `github.com` | TCP/443 | Checkout du repo (Jenkinsfile, seed job) | Existant |
 | Pod `provision-demo-vm` | Bucket `jenkins-poc-tfstate` (Scaleway S3) | TCP/443 | State Terraform distant | Existant |
-| Poste Maxime | Jenkins (`ci-cd/svc/jenkins`) | TCP/8080 | UI Jenkins, port-forward ou LoadBalancer ponctuel | Existant |
+| Poste Maxime | Jenkins (`ci-cd/svc/jenkins`) | TCP/8080 | UI Jenkins, LoadBalancer permanent par défaut | Existant |
 | Poste Maxime | API Kubernetes Scaleway | TCP/443 | `kubectl`/Terraform sur `infra/jenkins`, `infra/monitoring` | Existant |
 | OVH (hors bande) | Console KVM du serveur | - | Accès de secours à l'hôte Proxmox, indépendant du réseau/pare-feu | Existant (filet de sécurité) |
 | Poste Maxime (Uptime Kuma) | API Kubernetes Scaleway + Jenkins (LoadBalancer) | TCP/443, TCP/8080 | Surveillance externe, indépendante du cluster surveillé | Existant |
@@ -73,8 +73,8 @@ SCW_PROFILE=newprofile terraform apply
 
 ```bash
 cd infra/jenkins
-terraform destroy -var="jenkins_service_type=LoadBalancer"
-terraform apply -var="jenkins_service_type=LoadBalancer"
+terraform destroy
+terraform apply
 ```
 
 Jenkins revient dans le même état (plugins, JCasC, jobs, mot de passe admin fixé via `jenkins_admin_password`) sans action manuelle. La PVC (historique des builds, home Jenkins) survit elle aussi : elle porte l'annotation `helm.sh/resource-policy: keep` (valeur `persistence.annotations` du chart), qui empêche Helm de la supprimer au `destroy` et la fait ré-adopter au prochain `apply`. `infra/state-backend/` étant un module séparé, ce destroy/apply ne touche jamais au state du module `demo/`.
@@ -83,13 +83,15 @@ Vérifié en conditions réelles à deux reprises : la première fois sans l'ann
 
 ## Points ouverts
 
-- LoadBalancer Jenkins/Grafana : `-var="jenkins_service_type=LoadBalancer"` / `-var="grafana_service_type=LoadBalancer"`, à repasser en `ClusterIP` après usage
+Aucun point technique ouvert pour l'instant.
 
 ## Redondance du cluster
 
 Le control plane Kapsule est entièrement géré par Scaleway (offre standard, mutualisée) : sa disponibilité ne dépend pas de ce projet, et une offre à control plane dédié impliquerait de recréer le cluster, hors scope pour un PoC. En cas de panne du control plane, les workloads déjà déployés continuent de tourner (propriété de Kubernetes : kubelet ne dépend pas du control plane pour maintenir les conteneurs déjà programmés), mais plus aucune action (déploiement, replanification d'un pod qui crashe) n'est possible tant qu'il n'est pas revenu.
 
-Le vrai levier actionnable est le pool de nœuds (`infra/cluster/`) : par défaut un seul nœud (`fr-par-2`, état d'origine du cluster, importé sans modification). `terraform apply -var="ha_enabled=true"` ajoute deux pools supplémentaires dans deux autres zones (`fr-par-1`, `fr-par-3`), configurés à l'identique du pool existant — redondance multi-zone plutôt que multi-nœuds dans la même zone, un pool Scaleway étant rattaché à une seule zone.
+Le vrai levier actionnable est le pool de nœuds (`infra/cluster/`) : par défaut un seul nœud (`fr-par-2`, état d'origine du cluster, importé sans modification). `terraform apply -var="ha_enabled=true"` ajoute deux pools dans `fr-par-1` et `fr-par-3` — 3 nœuds sur les 3 zones de la région, redondance multi-zone plutôt que multi-nœuds dans la même zone, un pool Scaleway étant rattaché à une seule zone. Le type d'instance diffère selon la zone (`dev1_l` en `fr-par-1`/`fr-par-2`, `GP1-XS` en `fr-par-3` qui ne propose pas la famille DEV1 et où `PRO2-XS` s'est heurté à un quota de compte à 0), testé en conditions réelles.
+
+Limité à 2 zones sur les 3 disponibles en `fr-par` : `fr-par-3` ne propose pas la famille d'instance `DEV1` utilisée ailleurs, et l'alternative disponible (`PRO2-XS`) est bloquée par un quota du compte à 0 (limite de compte Scaleway, pas un choix d'architecture — testé en conditions réelles, `terraform apply` a échoué avec `Quota exceeded on cp_servers_type_PRO2_XS 0/0`).
 
 ## Surveillance externe
 

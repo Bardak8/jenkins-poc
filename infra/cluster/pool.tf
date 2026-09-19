@@ -14,11 +14,11 @@ resource "scaleway_k8s_pool" "primary" {
 }
 
 resource "scaleway_k8s_pool" "ha" {
-  for_each = var.ha_enabled ? toset(["fr-par-1", "fr-par-3"]) : toset([])
+  for_each = var.ha_enabled ? var.ha_zones : {}
 
   cluster_id             = "${var.region}/${var.cluster_id}"
   name                   = "pool-${each.key}-ha"
-  node_type              = var.node_type
+  node_type              = each.value
   zone                   = each.key
   size                   = 1
   min_size               = 1
