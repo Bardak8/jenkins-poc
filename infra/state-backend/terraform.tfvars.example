@@ -1,0 +1,6 @@
+# Copier ce fichier en terraform.tfvars (gitignoré) et renseigner vos valeurs.
+
+project_id = "PASTE_THE_ISOLATED_PROJECT_ID_HERE"
+
+# Cluster Kapsule existant (même valeur que infra/cluster et infra/jenkins).
+cluster_id = "PASTE_THE_EXISTING_CLUSTER_ID_HERE"

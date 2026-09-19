@@ -1,0 +1,4 @@
+proxmox_endpoint    = "https://139.99.130.72:8006"
+proxmox_node        = "ns536329"
+debian_template_id  = 9001
+ssh_public_key      = "ssh-ed25519 AAAA..."

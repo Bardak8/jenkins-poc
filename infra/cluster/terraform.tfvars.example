@@ -1,0 +1,10 @@
+# Copier ce fichier en terraform.tfvars (gitignoré) et renseigner vos valeurs.
+
+project_id = "PASTE_THE_ISOLATED_PROJECT_ID_HERE"
+
+# Cluster Kapsule créé manuellement via la console, dans le projet ci-dessus.
+cluster_id = "PASTE_THE_EXISTING_CLUSTER_ID_HERE"
+
+# ha_enabled=true ajoute 2 pools multi-zone (fr-par-1, fr-par-3) en plus
+# du pool existant (fr-par-2). Laisser à false pour l'état par défaut.
+ha_enabled = false

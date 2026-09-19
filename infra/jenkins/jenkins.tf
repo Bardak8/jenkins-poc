@@ -35,7 +35,6 @@ resource "helm_release" "jenkins" {
           "credentials-binding",
           "kubernetes",
           "kubernetes-credentials-provider",
-          "uno-choice",
         ]
         JCasC = {
           configScripts = {

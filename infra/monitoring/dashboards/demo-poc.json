@@ -14,7 +14,7 @@
         "type": "query",
         "datasource": null,
         "query": "label_values(up{job=~\".*node.*\"}, instance)",
-        "refresh": 2,
+        "refresh": 1,
         "sort": 1,
         "multi": false,
         "includeAll": false

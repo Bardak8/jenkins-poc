@@ -42,6 +42,9 @@ resource "helm_release" "monitoring" {
         }
       }
       grafana = {
+        image = {
+          tag = "13.0.9"
+        }
         service = {
           type = var.grafana_service_type
         }
@@ -53,14 +56,15 @@ resource "helm_release" "monitoring" {
         additionalDataSources = [
           {
             name   = "Demo-0 Prometheus"
+            uid    = "demo0-prometheus"
             type   = "prometheus"
             url    = "http://gateway.ci-cd.svc.cluster.local:9090"
             access = "proxy"
           }
         ]
         resources = {
-          requests = { cpu = "50m", memory = "128Mi" }
-          limits   = { cpu = "200m", memory = "256Mi" }
+          requests = { cpu = "100m", memory = "256Mi" }
+          limits   = { cpu = "500m", memory = "512Mi" }
         }
         persistence = { enabled = false }
       }

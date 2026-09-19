@@ -35,3 +35,22 @@ resource "kubernetes_config_map" "dashboard_demo_stack" {
 
   depends_on = [helm_release.monitoring]
 }
+
+resource "kubernetes_config_map" "dashboard_proxmox" {
+  metadata {
+    name      = "dashboard-proxmox-via-prometheus"
+    namespace = "monitoring"
+    labels = {
+      grafana_dashboard = "1"
+    }
+    annotations = {
+      grafana_folder = "PoC"
+    }
+  }
+
+  data = {
+    "proxmox-via-prometheus.json" = file("${path.module}/dashboards/proxmox-via-prometheus.json")
+  }
+
+  depends_on = [helm_release.monitoring]
+}
