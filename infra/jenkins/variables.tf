@@ -61,6 +61,11 @@ variable "outillage_wan_endpoint" {
   default     = "51.161.144.5:51820"
 }
 
+variable "proxmox_lan_ip" {
+  description = "IP LAN de Proxmox (relayée par le pod gateway)"
+  type        = string
+}
+
 variable "deploy_wireguard_private_key" {
   description = "Clé privée WireGuard du tunnel éphémère de déploiement"
   type        = string

@@ -58,6 +58,8 @@ resource "kubernetes_deployment" "gateway" {
             cp /etc/wireguard-secret/wg0.conf /etc/wireguard/wg0.conf
             chmod 600 /etc/wireguard/wg0.conf
             wg-quick up wg0
+            socat TCP-LISTEN:8006,fork,reuseaddr TCP:${var.proxmox_lan_ip}:8006 &
+            socat TCP-LISTEN:9100,fork,reuseaddr TCP:192.168.1.5:9100 &
             tail -f /dev/null
             EOT
           ]
@@ -82,6 +84,31 @@ resource "kubernetes_deployment" "gateway" {
           }
         }
       }
+    }
+  }
+}
+
+resource "kubernetes_service" "gateway" {
+  metadata {
+    name      = "gateway"
+    namespace = "ci-cd"
+  }
+
+  spec {
+    selector = {
+      app = "gateway"
+    }
+
+    port {
+      name        = "proxmox-api"
+      port        = 8006
+      target_port = 8006
+    }
+
+    port {
+      name        = "node-exporter"
+      port        = 9100
+      target_port = 9100
     }
   }
 }
