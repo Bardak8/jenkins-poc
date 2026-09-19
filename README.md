@@ -6,6 +6,7 @@ Support de démonstration pour l'oral du Bloc 5 (RNCP Expert en architecture des
 
 | Dossier | Rôle |
 |---|---|
+| `infra/cluster/` | Pool(s) de nœuds Kapsule. `ha_enabled=true` ajoute 2 pools multi-zone (`fr-par-1`, `fr-par-3`) en plus du pool existant (`fr-par-2`) |
 | `infra/state-backend/` | Bucket S3 + clé IAM pour le state distant du module `demo/` |
 | `infra/jenkins/` | Cluster Kapsule (référencé) + Jenkins (Helm/JCasC/Job DSL) + passerelle WireGuard |
 | `infra/monitoring/` | kube-prometheus-stack (Prometheus/Alertmanager/Grafana) |
@@ -29,7 +30,7 @@ Support de démonstration pour l'oral du Bloc 5 (RNCP Expert en architecture des
 
 Projet Scaleway, cluster Kapsule, VPS OVH + Proxmox + pfSense créés manuellement (hors Terraform).
 
-Pour chaque module (`infra/state-backend/`, `infra/jenkins/`, `infra/monitoring/`, `target-infra/vms/outillage/`) :
+Pour chaque module (`infra/cluster/`, `infra/state-backend/`, `infra/jenkins/`, `infra/monitoring/`, `target-infra/vms/outillage/`) :
 
 ```bash
 terraform init
@@ -82,12 +83,17 @@ Vérifié en conditions réelles à deux reprises : la première fois sans l'ann
 
 ## Points ouverts
 
-- LoadBalancer Jenkins : `-var="jenkins_service_type=LoadBalancer"`, à repasser en `ClusterIP` après usage
-- Versionner les dashboards Grafana (actuellement configurés à la main dans l'UI)
+- LoadBalancer Jenkins/Grafana : `-var="jenkins_service_type=LoadBalancer"` / `-var="grafana_service_type=LoadBalancer"`, à repasser en `ClusterIP` après usage
+
+## Redondance du cluster
+
+Le control plane Kapsule est entièrement géré par Scaleway (offre standard, mutualisée) : sa disponibilité ne dépend pas de ce projet, et une offre à control plane dédié impliquerait de recréer le cluster, hors scope pour un PoC. En cas de panne du control plane, les workloads déjà déployés continuent de tourner (propriété de Kubernetes : kubelet ne dépend pas du control plane pour maintenir les conteneurs déjà programmés), mais plus aucune action (déploiement, replanification d'un pod qui crashe) n'est possible tant qu'il n'est pas revenu.
+
+Le vrai levier actionnable est le pool de nœuds (`infra/cluster/`) : par défaut un seul nœud (`fr-par-2`, état d'origine du cluster, importé sans modification). `terraform apply -var="ha_enabled=true"` ajoute deux pools supplémentaires dans deux autres zones (`fr-par-1`, `fr-par-3`), configurés à l'identique du pool existant — redondance multi-zone plutôt que multi-nœuds dans la même zone, un pool Scaleway étant rattaché à une seule zone.
 
 ## Surveillance externe
 
-Ni Prometheus ni Alertmanager ne peuvent alerter sur leur propre panne : ils vivent dans le cluster qu'ils surveillent. `external-monitoring/uptime-kuma/` ajoute un point de contrôle volontairement en dehors de Terraform et de Scaleway (sur le poste de Maxime), qui détecte une panne du cluster ou une panne générale Scaleway indépendamment de l'état du reste de la stack. Détails et cibles dans son propre README.
+Ni Prometheus ni Alertmanager ne peuvent alerter sur leur propre panne : ils vivent dans le cluster qu'ils surveillent. `external-monitoring/uptime-kuma/` ajoute un point de contrôle volontairement en dehors de Terraform et de Scaleway (sur le poste de Maxime), qui détecte une panne du cluster ou une panne générale Scaleway indépendamment de l'état du reste de la stack — y compris une panne du control plane que la redondance des pools ne couvre pas. Détails et cibles dans son propre README.
 
 ## Lien avec le dossier réel (Bloc 1-3)
 
