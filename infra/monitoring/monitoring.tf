@@ -42,6 +42,9 @@ resource "helm_release" "monitoring" {
         }
       }
       grafana = {
+        service = {
+          type = var.grafana_service_type
+        }
         resources = {
           requests = { cpu = "50m", memory = "128Mi" }
           limits   = { cpu = "200m", memory = "256Mi" }
