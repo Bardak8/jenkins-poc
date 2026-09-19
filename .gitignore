@@ -20,6 +20,7 @@ kubeconfig*
 wireguard/**/privatekey*
 wireguard/**/*.conf
 !wireguard/**/*.conf.example
+deploy/monitoring-stack/pve-exporter/pve.yml
 
 # Divers
 .DS_Store

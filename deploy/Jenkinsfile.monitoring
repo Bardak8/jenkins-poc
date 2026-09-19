@@ -6,6 +6,10 @@ pipeline {
                 kind: Pod
                 spec:
                   containers:
+                  - name: promtool
+                    image: prom/prometheus:latest
+                    command: ["cat"]
+                    tty: true
                   - name: deploy
                     image: alpine:3.20
                     command: ["cat"]
@@ -29,8 +33,11 @@ pipeline {
                       secretName: deploy-ssh-key
                       defaultMode: 0400
             '''
-            defaultContainer 'deploy'
         }
+    }
+
+    parameters {
+        booleanParam(name: 'DEPLOY', defaultValue: false, description: 'Déployer sur demo-0 après validation des règles')
     }
 
     environment {
@@ -38,52 +45,91 @@ pipeline {
     }
 
     stages {
-        stage('Préparer les outils') {
+        stage('Lint des règles') {
             steps {
-                sh 'apk add --no-cache wireguard-tools openssh-client'
+                container('promtool') {
+                    dir('deploy/monitoring-stack') {
+                        sh 'promtool check rules prometheus/alerts/*.yml'
+                    }
+                }
             }
         }
 
-        stage('Monter le tunnel') {
+        stage('Tests unitaires des alertes') {
             steps {
-                sh '''
-                    mkdir -p /etc/wireguard
-                    cp /etc/wireguard-secret/wg0.conf /etc/wireguard/wg0.conf
-                    chmod 600 /etc/wireguard/wg0.conf
-                    wg-quick up wg0
-                '''
+                container('promtool') {
+                    dir('deploy/monitoring-stack/unit-tests') {
+                        sh 'promtool test rules *_test.yml'
+                    }
+                }
             }
         }
 
-        stage('Déployer node_exporter') {
-            steps {
-                sh '''
-                    mkdir -p /root/.ssh
-                    cp /root/.ssh-secret/id_ed25519 /root/.ssh/id_ed25519
-                    chmod 600 /root/.ssh/id_ed25519
-
-                    ssh -o StrictHostKeyChecking=no -i /root/.ssh/id_ed25519 admin@$DEMO_VM_IP '
-                        sudo apt-get update &&
-                        sudo apt-get install -y prometheus-node-exporter &&
-                        sudo systemctl enable --now prometheus-node-exporter
-                    '
-                '''
+        stage('Déploiement') {
+            when {
+                expression { params.DEPLOY }
             }
-        }
-
-        stage('Vérifier') {
             steps {
-                sh '''
-                    ssh -o StrictHostKeyChecking=no -i /root/.ssh/id_ed25519 admin@$DEMO_VM_IP \
-                        'curl -s localhost:9100/metrics | head -5'
-                '''
+                container('deploy') {
+                    sh 'apk add --no-cache wireguard-tools openssh-client rsync'
+
+                    sh '''
+                        mkdir -p /etc/wireguard
+                        cp /etc/wireguard-secret/wg0.conf /etc/wireguard/wg0.conf
+                        chmod 600 /etc/wireguard/wg0.conf
+                        wg-quick up wg0
+                    '''
+
+                    withCredentials([string(credentialsId: 'proxmox-api-token', variable: 'PVE_TOKEN')]) {
+                        sh '''
+                            mkdir -p /root/.ssh
+                            cp /root/.ssh-secret/id_ed25519 /root/.ssh/id_ed25519
+                            chmod 600 /root/.ssh/id_ed25519
+
+                            PVE_USER="${PVE_TOKEN%%!*}"
+                            REST="${PVE_TOKEN#*!}"
+                            PVE_TOKEN_NAME="${REST%%=*}"
+                            PVE_TOKEN_VALUE="${REST#*=}"
+
+                            ssh -o StrictHostKeyChecking=no -i /root/.ssh/id_ed25519 admin@$DEMO_VM_IP "
+                                sudo apt-get update &&
+                                sudo apt-get install -y docker.io docker-compose &&
+                                sudo systemctl disable --now prometheus-node-exporter 2>/dev/null || true &&
+                                sudo mkdir -p /opt/monitoring-stack/pve-exporter &&
+                                mkdir -p /tmp/monitoring-stack
+                            "
+
+                            rsync -e "ssh -o StrictHostKeyChecking=no -i /root/.ssh/id_ed25519" -a --delete \
+                                deploy/monitoring-stack/ admin@$DEMO_VM_IP:/tmp/monitoring-stack/
+
+                            ssh -o StrictHostKeyChecking=no -i /root/.ssh/id_ed25519 admin@$DEMO_VM_IP "
+                                sudo rsync -a --delete /tmp/monitoring-stack/ /opt/monitoring-stack/ &&
+                                cat <<EOF | sudo tee /opt/monitoring-stack/pve-exporter/pve.yml > /dev/null
+default:
+  user: ${PVE_USER}
+  token_name: ${PVE_TOKEN_NAME}
+  token_value: ${PVE_TOKEN_VALUE}
+  verify_ssl: false
+EOF
+                                cd /opt/monitoring-stack &&
+                                sudo docker-compose up -d --force-recreate &&
+                                sleep 5 &&
+                                curl -s -X POST http://localhost:9090/-/reload &&
+                                curl -s http://localhost:9090/-/healthy &&
+                                curl -s http://localhost:9093/-/healthy
+                            "
+                        '''
+                    }
+
+                    sh 'wg-quick down wg0 || true'
+                }
             }
         }
     }
 
     post {
-        always {
-            sh 'wg-quick down wg0 || true'
+        failure {
+            echo 'Échec de la pipeline, aucun déploiement effectué.'
         }
     }
 }

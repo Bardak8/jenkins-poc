@@ -1,0 +1,72 @@
+{
+  "title": "PoC - demo-0",
+  "uid": "poc-demo-0",
+  "tags": ["poc", "bloc5"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "demo-0 up",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+      "datasource": null,
+      "targets": [
+        {
+          "expr": "up{job=\"demo-node-exporter\"}",
+          "legendFormat": "up"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+          ],
+          "thresholds": { "mode": "absolute", "steps": [{ "value": null, "color": "red" }, { "value": 1, "color": "green" }] }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "CPU utilisé (%)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 9, "x": 6, "y": 0 },
+      "datasource": null,
+      "targets": [
+        {
+          "expr": "100 - (avg by(instance) (rate(node_cpu_seconds_total{mode=\"idle\", instance=\"gateway.ci-cd.svc.cluster.local:9100\"}[5m])) * 100)",
+          "legendFormat": "CPU %"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Mémoire utilisée (%)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 9, "x": 15, "y": 0 },
+      "datasource": null,
+      "targets": [
+        {
+          "expr": "(1 - (node_memory_MemAvailable_bytes{instance=\"gateway.ci-cd.svc.cluster.local:9100\"} / node_memory_MemTotal_bytes{instance=\"gateway.ci-cd.svc.cluster.local:9100\"})) * 100",
+          "legendFormat": "Mémoire %"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Espace disque utilisé (%)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
+      "datasource": null,
+      "targets": [
+        {
+          "expr": "(1 - (node_filesystem_avail_bytes{instance=\"gateway.ci-cd.svc.cluster.local:9100\", fstype!~\"tmpfs|overlay\"} / node_filesystem_size_bytes{instance=\"gateway.ci-cd.svc.cluster.local:9100\", fstype!~\"tmpfs|overlay\"})) * 100",
+          "legendFormat": "{{ mountpoint }}"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+services:
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: uptime-kuma
+    network_mode: host
+    volumes:
+      - uptime-kuma:/app/data
+    restart: unless-stopped
+
+volumes:
+  uptime-kuma:

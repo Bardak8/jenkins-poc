@@ -1,0 +1,128 @@
+rule_files:
+  - ../prometheus/alerts/blackbox.yml
+
+evaluation_interval: 1m
+
+tests:
+
+  - name: "ProbeFailed — fire après 3m de sonde en échec"
+    interval: 1m
+    input_series:
+      - series: 'probe_success{instance="192.168.1.6", job="blackbox-icmp", service="demo-app"}'
+        values: "1 0 0 0 0 0"
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: ProbeFailed
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              instance: "192.168.1.6"
+              job: blackbox-icmp
+              service: demo-app
+            exp_annotations:
+              summary: "Sonde en échec sur 192.168.1.6"
+              description: "La sonde blackbox-icmp vers 192.168.1.6 (demo-app) échoue depuis plus de 3 minutes"
+
+  - name: "ProbeFailed — pas de fire si la sonde répond"
+    interval: 1m
+    input_series:
+      - series: 'probe_success{instance="192.168.1.6", job="blackbox-icmp", service="demo-app"}'
+        values: "1x6"
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: ProbeFailed
+        exp_alerts: []
+
+  - name: "ProbeSlow — fire au-dessus de 2 secondes"
+    interval: 1m
+    input_series:
+      - series: 'probe_duration_seconds{instance="https://192.168.1.3:8006", job="blackbox-web", service="proxmox-ui"}'
+        values: "3.5x14"
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: ProbeSlow
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              instance: "https://192.168.1.3:8006"
+              job: blackbox-web
+              service: proxmox-ui
+            exp_annotations:
+              summary: "Sonde lente sur https://192.168.1.3:8006"
+              description: "La sonde vers https://192.168.1.3:8006 met 3.5s à répondre depuis plus de 10 minutes"
+
+  - name: "ProbeSlow — pas de fire sous le seuil"
+    interval: 1m
+    input_series:
+      - series: 'probe_duration_seconds{instance="https://192.168.1.3:8006", job="blackbox-web", service="proxmox-ui"}'
+        values: "0.4x14"
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: ProbeSlow
+        exp_alerts: []
+
+  - name: "HttpStatusUnexpected — fire sur un code 500"
+    interval: 1m
+    input_series:
+      - series: 'probe_http_status_code{instance="http://192.168.1.6", job="blackbox-web", service="demo-app"}'
+        values: "500x8"
+    alert_rule_test:
+      - eval_time: 7m
+        alertname: HttpStatusUnexpected
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              instance: "http://192.168.1.6"
+              job: blackbox-web
+              service: demo-app
+            exp_annotations:
+              summary: "Code HTTP inattendu sur http://192.168.1.6"
+              description: "L'interface http://192.168.1.6 retourne un code 500 depuis plus de 5 minutes"
+
+  - name: "HttpStatusUnexpected — pas de fire sur un code 200"
+    interval: 1m
+    input_series:
+      - series: 'probe_http_status_code{instance="http://192.168.1.6", job="blackbox-web", service="demo-app"}'
+        values: "200x8"
+    alert_rule_test:
+      - eval_time: 7m
+        alertname: HttpStatusUnexpected
+        exp_alerts: []
+
+  - name: "SshDaemonUnresponsive — fire après 3m sans bannière valide"
+    interval: 1m
+    input_series:
+      - series: 'probe_success{instance="192.168.1.2:22", job="blackbox-ssh", service="outillage-ssh"}'
+        values: "1 0 0 0 0 0"
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: SshDaemonUnresponsive
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              instance: "192.168.1.2:22"
+              job: blackbox-ssh
+              service: outillage-ssh
+            exp_annotations:
+              summary: "Démon SSH hors service sur 192.168.1.2:22"
+              description: "Le démon SSH de 192.168.1.2:22 (outillage-ssh) ne renvoie plus de bannière valide depuis plus de 3 minutes"
+
+  - name: "SshDaemonUnresponsive — pas de fire si la bannière répond"
+    interval: 1m
+    input_series:
+      - series: 'probe_success{instance="192.168.1.2:22", job="blackbox-ssh", service="outillage-ssh"}'
+        values: "1x6"
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: SshDaemonUnresponsive
+        exp_alerts: []
+
+  - name: "ProbeFailed — n'intercepte pas les sondes SSH"
+    interval: 1m
+    input_series:
+      - series: 'probe_success{instance="192.168.1.2:22", job="blackbox-ssh", service="outillage-ssh"}'
+        values: "0x6"
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: ProbeFailed
+        exp_alerts: []

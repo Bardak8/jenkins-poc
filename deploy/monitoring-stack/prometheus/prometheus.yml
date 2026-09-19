@@ -1,0 +1,17 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    environment: "poc-bloc5"
+
+rule_files:
+  - /etc/prometheus/alerts/*.yml
+
+scrape_config_files:
+  - /etc/prometheus/jobs/*.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093

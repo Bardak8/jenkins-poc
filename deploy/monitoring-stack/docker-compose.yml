@@ -1,0 +1,54 @@
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --web.enable-lifecycle
+      - --web.external-url=http://192.168.1.5:9090
+    volumes:
+      - ./prometheus:/etc/prometheus
+      - prometheus-data:/prometheus
+    ports:
+      - 9090:9090
+    restart: unless-stopped
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    volumes:
+      - ./alertmanager:/etc/alertmanager
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+    ports:
+      - 9093:9093
+    restart: unless-stopped
+
+  node-exporter:
+    image: quay.io/prometheus/node-exporter:latest
+    command:
+      - --path.rootfs=/host
+    network_mode: host
+    pid: host
+    restart: unless-stopped
+    volumes:
+      - /:/host:ro,rslave
+
+  blackbox-exporter:
+    image: quay.io/prometheus/blackbox-exporter:latest
+    volumes:
+      - ./blackbox-exporter:/etc/blackbox-exporter
+    command:
+      - --config.file=/etc/blackbox-exporter/config.yml
+    cap_add:
+      - NET_RAW
+    restart: unless-stopped
+
+  pve-exporter:
+    image: prompve/prometheus-pve-exporter:latest
+    volumes:
+      - ./pve-exporter/pve.yml:/etc/prometheus/pve.yml
+    ports:
+      - 9221:9221
+    restart: unless-stopped
+
+volumes:
+  prometheus-data:

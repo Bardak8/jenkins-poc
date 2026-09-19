@@ -43,7 +43,7 @@ pipeline {
 
                             def args = [
                                 'terraform apply -auto-approve',
-                                '-var="proxmox_endpoint=https://139.99.130.72:8006"',
+                                '-var="proxmox_endpoint=https://gateway.ci-cd.svc.cluster.local:8006"',
                                 '-var="proxmox_node=ns536329"',
                                 '-var="debian_template_id=9001"',
                                 '-var="ssh_public_key=ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIB9YhnWF0+Vu4vn71+kGoZPoDxlbnvMAQiFOjUBa1zgk maxime@maxime-Precision-5690"',

@@ -23,6 +23,14 @@ resource "helm_release" "monitoring" {
             limits   = { cpu = "500m", memory = "1Gi" }
           }
           storageSpec = {}
+          additionalScrapeConfigs = [
+            {
+              job_name = "demo-node-exporter"
+              static_configs = [
+                { targets = ["gateway.ci-cd.svc.cluster.local:9100"] }
+              ]
+            }
+          ]
         }
       }
       alertmanager = {

@@ -1,0 +1,64 @@
+scrape_configs:
+
+  - job_name: blackbox-web
+    metrics_path: /probe
+    params:
+      module: [http_2xx_insecure]
+    static_configs:
+      - targets:
+          - https://192.168.1.3:8006
+        labels:
+          service: proxmox-ui
+      - targets:
+          - http://192.168.1.6
+        labels:
+          service: demo-app
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+  - job_name: blackbox-icmp
+    metrics_path: /probe
+    params:
+      module: [icmp]
+    static_configs:
+      - targets:
+          - 192.168.1.2
+        labels:
+          service: outillage
+      - targets:
+          - 192.168.1.6
+        labels:
+          service: demo-app
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+  - job_name: blackbox-ssh
+    metrics_path: /probe
+    params:
+      module: [ssh_banner]
+    static_configs:
+      - targets:
+          - 192.168.1.2:22
+        labels:
+          service: outillage-ssh
+      - targets:
+          - 192.168.1.6:22
+        labels:
+          service: demo-app-ssh
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115

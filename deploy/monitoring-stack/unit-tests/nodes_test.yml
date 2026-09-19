@@ -1,0 +1,114 @@
+rule_files:
+  - ../prometheus/alerts/nodes.yml
+
+evaluation_interval: 1m
+
+tests:
+
+  - name: "NodeDown — fire après 2m d'absence"
+    interval: 1m
+    input_series:
+      - series: 'up{job="node-exporter", instance="192.168.1.5:9100"}'
+        values: "1 1 0 0 0"
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: NodeDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              job: node-exporter
+              instance: "192.168.1.5:9100"
+            exp_annotations:
+              summary: "Nœud 192.168.1.5:9100 injoignable"
+              description: "Le nœud 192.168.1.5:9100 ne répond plus depuis plus de 2 minutes"
+
+  - name: "NodeDown — pas de fire si up"
+    interval: 1m
+    input_series:
+      - series: 'up{job="node-exporter", instance="192.168.1.5:9100"}'
+        values: "1 1 1 1 1"
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: NodeDown
+        exp_alerts: []
+
+  - name: "NodeDown — pas de fire sur un job non concerné"
+    interval: 1m
+    input_series:
+      - series: 'up{job="blackbox-web", instance="192.168.1.6"}'
+        values: "0 0 0 0 0"
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: NodeDown
+        exp_alerts: []
+
+  - name: "HighCPU — fire après 10m au-dessus de 80%"
+    interval: 1m
+    input_series:
+      - series: 'node_cpu_seconds_total{mode="idle", instance="192.168.1.5:9100", job="node-exporter", cpu="0"}'
+        values: "0+4x15"
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: HighCPU
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              instance: "192.168.1.5:9100"
+            exp_annotations:
+              summary: "CPU élevé sur 192.168.1.5:9100"
+              description: "CPU à 93% sur 192.168.1.5:9100 depuis plus de 10 minutes"
+
+  - name: "HighCPU — pas de fire en dessous du seuil"
+    interval: 1m
+    input_series:
+      - series: 'node_cpu_seconds_total{mode="idle", instance="192.168.1.5:9100", job="node-exporter", cpu="0"}'
+        values: "0+30x15"
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: HighCPU
+        exp_alerts: []
+
+  - name: "DiskSpaceLow — fire à 90% d'utilisation après 10m"
+    interval: 1m
+    input_series:
+      - series: 'node_filesystem_avail_bytes{instance="192.168.1.5:9100", job="node-exporter", mountpoint="/", fstype="ext4"}'
+        values: "10737418240x12"
+      - series: 'node_filesystem_size_bytes{instance="192.168.1.5:9100", job="node-exporter", mountpoint="/", fstype="ext4"}'
+        values: "107374182400x12"
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: DiskSpaceLow
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              instance: "192.168.1.5:9100"
+              job: node-exporter
+              mountpoint: "/"
+              fstype: ext4
+            exp_annotations:
+              summary: "Espace disque faible sur 192.168.1.5:9100"
+              description: "Disque / à 90% sur 192.168.1.5:9100"
+
+  - name: "DiskSpaceLow — pas de fire à 80% d'utilisation"
+    interval: 1m
+    input_series:
+      - series: 'node_filesystem_avail_bytes{instance="192.168.1.5:9100", job="node-exporter", mountpoint="/", fstype="ext4"}'
+        values: "21474836480x12"
+      - series: 'node_filesystem_size_bytes{instance="192.168.1.5:9100", job="node-exporter", mountpoint="/", fstype="ext4"}'
+        values: "107374182400x12"
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: DiskSpaceLow
+        exp_alerts: []
+
+  - name: "DiskSpaceLow — pas de fire sur un tmpfs saturé"
+    interval: 1m
+    input_series:
+      - series: 'node_filesystem_avail_bytes{instance="192.168.1.5:9100", job="node-exporter", mountpoint="/dev/shm", fstype="tmpfs"}'
+        values: "1073741824x12"
+      - series: 'node_filesystem_size_bytes{instance="192.168.1.5:9100", job="node-exporter", mountpoint="/dev/shm", fstype="tmpfs"}'
+        values: "107374182400x12"
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: DiskSpaceLow
+        exp_alerts: []
