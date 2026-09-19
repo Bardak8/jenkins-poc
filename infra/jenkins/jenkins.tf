@@ -57,9 +57,7 @@ resource "helm_release" "jenkins" {
         create = true
       }
       persistence = {
-        annotations = {
-          "helm.sh/resource-policy" = "keep"
-        }
+        existingClaim = "jenkins-longhorn"
       }
     })
   ]

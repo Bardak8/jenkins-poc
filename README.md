@@ -7,6 +7,7 @@ Support de démonstration pour l'oral du Bloc 5 (RNCP Expert en architecture des
 | Dossier | Rôle |
 |---|---|
 | `infra/cluster/` | Pool(s) de nœuds Kapsule. `ha_enabled=true` ajoute 2 pools multi-zone (`fr-par-1`, `fr-par-3`) en plus du pool existant (`fr-par-2`) |
+| `infra/storage/` | Longhorn (stockage répliqué entre nœuds), nécessaire pour que Jenkins survive à une panne de nœud/zone |
 | `infra/state-backend/` | Bucket S3 + clé IAM pour le state distant du module `demo/` |
 | `infra/jenkins/` | Cluster Kapsule (référencé) + Jenkins (Helm/JCasC/Job DSL) + passerelle WireGuard |
 | `infra/monitoring/` | kube-prometheus-stack (Prometheus/Alertmanager/Grafana) |
@@ -18,6 +19,7 @@ Support de démonstration pour l'oral du Bloc 5 (RNCP Expert en architecture des
 | `deploy/Jenkinsfile.app` | Pipeline `deploy-app` (détecte les VM app en direct, menu de choix en cours de run) |
 | `deploy/app/` | `docker-compose.yml` + `index.html` de l'appli de démo |
 | `external-monitoring/uptime-kuma/` | Surveillance externe, volontairement hors Terraform (voir plus bas) |
+| `scripts/` | Scripts d'orchestration pour la démo (voir son propre README) |
 | `wireguard/` | Clés WireGuard (gitignorées) |
 
 `infra/state-backend/`, `infra/jenkins/` et `infra/monitoring/` ont chacun leur propre state Terraform, volontairement séparés : `state-backend/` ne dépend de rien et ne doit jamais être affecté par un test de reconstruction de Jenkins.
@@ -30,7 +32,9 @@ Support de démonstration pour l'oral du Bloc 5 (RNCP Expert en architecture des
 
 Projet Scaleway, cluster Kapsule, VPS OVH + Proxmox + pfSense créés manuellement (hors Terraform).
 
-Pour chaque module (`infra/cluster/`, `infra/state-backend/`, `infra/jenkins/`, `infra/monitoring/`, `target-infra/vms/outillage/`) :
+Pour tout monter d'un coup dans le bon ordre : `scripts/demo-up.sh`. Le détail module par module ci-dessous reste valable pour comprendre ou intervenir manuellement.
+
+Pour chaque module (`infra/cluster/`, `infra/storage/`, `infra/state-backend/`, `infra/jenkins/`, `infra/monitoring/`, `target-infra/vms/outillage/`) :
 
 ```bash
 terraform init
@@ -90,6 +94,12 @@ Aucun point technique ouvert pour l'instant.
 Le control plane Kapsule est entièrement géré par Scaleway (offre standard, mutualisée) : sa disponibilité ne dépend pas de ce projet, et une offre à control plane dédié impliquerait de recréer le cluster, hors scope pour un PoC. En cas de panne du control plane, les workloads déjà déployés continuent de tourner (propriété de Kubernetes : kubelet ne dépend pas du control plane pour maintenir les conteneurs déjà programmés), mais plus aucune action (déploiement, replanification d'un pod qui crashe) n'est possible tant qu'il n'est pas revenu.
 
 Le vrai levier actionnable est le pool de nœuds (`infra/cluster/`) : par défaut un seul nœud (`fr-par-2`, état d'origine du cluster, importé sans modification). `terraform apply -var="ha_enabled=true"` ajoute deux pools dans `fr-par-1` et `fr-par-3` — 3 nœuds sur les 3 zones de la région, redondance multi-zone plutôt que multi-nœuds dans la même zone, un pool Scaleway étant rattaché à une seule zone. Le type d'instance diffère selon la zone (`dev1_l` en `fr-par-1`/`fr-par-2`, `GP1-XS` en `fr-par-3` qui ne propose pas la famille DEV1 et où `PRO2-XS` s'est heurté à un quota de compte à 0), testé en conditions réelles.
+
+### Stockage répliqué (Longhorn)
+
+Le multi-zone seul ne suffit pas : un volume bloc Scaleway (`sbs-default`) est verrouillé à sa zone de création, donc un pod avec état (Jenkins) ne peut pas être replanifié ailleurs même avec 3 nœuds disponibles — testé en conditions réelles, `kubectl drain` a laissé Jenkins bloqué en `Pending` avec l'erreur `didn't match PersistentVolume's node affinity`.
+
+`infra/storage/` déploie Longhorn (réplication de volumes entre nœuds), et le PVC de Jenkins (`infra/jenkins/pvc.tf`) utilise la `StorageClass` `longhorn` à la place de `sbs-default`, avec un réplica par nœud. Migration faite en conditions réelles : pod Jenkins arrêté, copie des données (`rsync`) de l'ancien PVC vers le nouveau via un pod temporaire, bascule de `persistence.existingClaim` dans `infra/jenkins/jenkins.tf`. Retest du `drain` après migration : Jenkins bascule bien sur un autre nœud/zone, volume attaché automatiquement, jobs et historique intacts.
 
 Limité à 2 zones sur les 3 disponibles en `fr-par` : `fr-par-3` ne propose pas la famille d'instance `DEV1` utilisée ailleurs, et l'alternative disponible (`PRO2-XS`) est bloquée par un quota du compte à 0 (limite de compte Scaleway, pas un choix d'architecture — testé en conditions réelles, `terraform apply` a échoué avec `Quota exceeded on cp_servers_type_PRO2_XS 0/0`).
 
