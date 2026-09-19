@@ -7,16 +7,30 @@
   "version": 1,
   "refresh": "30s",
   "time": { "from": "now-1h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "instance",
+        "type": "query",
+        "datasource": null,
+        "query": "label_values(up{job=~\".*node.*\"}, instance)",
+        "refresh": 2,
+        "sort": 1,
+        "multi": false,
+        "includeAll": false
+      }
+    ]
+  },
   "panels": [
     {
       "id": 1,
-      "title": "demo-0 up",
+      "title": "$instance up",
       "type": "stat",
       "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
       "datasource": null,
       "targets": [
         {
-          "expr": "up{job=\"demo-node-exporter\"}",
+          "expr": "up{job=~\".*node.*\", instance=\"$instance\"}",
           "legendFormat": "up"
         }
       ],
@@ -31,39 +45,39 @@
     },
     {
       "id": 2,
-      "title": "CPU utilisé (%)",
+      "title": "CPU utilisé (%) - $instance",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 9, "x": 6, "y": 0 },
       "datasource": null,
       "targets": [
         {
-          "expr": "100 - (avg by(instance) (rate(node_cpu_seconds_total{mode=\"idle\", instance=\"gateway.ci-cd.svc.cluster.local:9100\"}[5m])) * 100)",
+          "expr": "100 - (avg by(instance) (rate(node_cpu_seconds_total{mode=\"idle\", instance=\"$instance\"}[5m])) * 100)",
           "legendFormat": "CPU %"
         }
       ]
     },
     {
       "id": 3,
-      "title": "Mémoire utilisée (%)",
+      "title": "Mémoire utilisée (%) - $instance",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 9, "x": 15, "y": 0 },
       "datasource": null,
       "targets": [
         {
-          "expr": "(1 - (node_memory_MemAvailable_bytes{instance=\"gateway.ci-cd.svc.cluster.local:9100\"} / node_memory_MemTotal_bytes{instance=\"gateway.ci-cd.svc.cluster.local:9100\"})) * 100",
+          "expr": "(1 - (node_memory_MemAvailable_bytes{instance=\"$instance\"} / node_memory_MemTotal_bytes{instance=\"$instance\"})) * 100",
           "legendFormat": "Mémoire %"
         }
       ]
     },
     {
       "id": 4,
-      "title": "Espace disque utilisé (%)",
+      "title": "Espace disque utilisé (%) - $instance",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
       "datasource": null,
       "targets": [
         {
-          "expr": "(1 - (node_filesystem_avail_bytes{instance=\"gateway.ci-cd.svc.cluster.local:9100\", fstype!~\"tmpfs|overlay\"} / node_filesystem_size_bytes{instance=\"gateway.ci-cd.svc.cluster.local:9100\", fstype!~\"tmpfs|overlay\"})) * 100",
+          "expr": "(1 - (node_filesystem_avail_bytes{instance=\"$instance\", fstype!~\"tmpfs|overlay\"} / node_filesystem_size_bytes{instance=\"$instance\", fstype!~\"tmpfs|overlay\"})) * 100",
           "legendFormat": "{{ mountpoint }}"
         }
       ]

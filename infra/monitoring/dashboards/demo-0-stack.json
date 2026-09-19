@@ -7,6 +7,30 @@
   "version": 1,
   "refresh": "30s",
   "time": { "from": "now-1h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "instance",
+        "type": "query",
+        "datasource": "Demo-0 Prometheus",
+        "query": "label_values(node_uname_info, instance)",
+        "refresh": 2,
+        "sort": 1,
+        "multi": false,
+        "includeAll": false
+      },
+      {
+        "name": "service",
+        "type": "query",
+        "datasource": "Demo-0 Prometheus",
+        "query": "label_values(probe_success, service)",
+        "refresh": 2,
+        "sort": 1,
+        "multi": true,
+        "includeAll": true
+      }
+    ]
+  },
   "panels": [
     {
       "id": 1,
@@ -15,7 +39,7 @@
       "gridPos": { "h": 6, "w": 8, "x": 0, "y": 0 },
       "datasource": "Demo-0 Prometheus",
       "targets": [
-        { "expr": "pve_up", "legendFormat": "pve_up" }
+        { "expr": "pve_up", "legendFormat": "{{ id }}" }
       ],
       "fieldConfig": {
         "defaults": {
@@ -28,36 +52,36 @@
     },
     {
       "id": 2,
-      "title": "Sondes blackbox",
+      "title": "Sondes blackbox - $service",
       "type": "table",
       "gridPos": { "h": 6, "w": 16, "x": 8, "y": 0 },
       "datasource": "Demo-0 Prometheus",
       "targets": [
-        { "expr": "probe_success", "legendFormat": "{{ job }} - {{ service }}", "format": "table", "instant": true }
+        { "expr": "probe_success{service=~\"$service\"}", "legendFormat": "{{ job }} - {{ service }}", "format": "table", "instant": true }
       ]
     },
     {
       "id": 3,
-      "title": "CPU utilisé (%) - demo-0",
+      "title": "CPU utilisé (%) - $instance",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
       "datasource": "Demo-0 Prometheus",
       "targets": [
         {
-          "expr": "100 - (avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+          "expr": "100 - (avg(rate(node_cpu_seconds_total{mode=\"idle\", instance=\"$instance\"}[5m])) * 100)",
           "legendFormat": "CPU %"
         }
       ]
     },
     {
       "id": 4,
-      "title": "Mémoire utilisée (%) - demo-0",
+      "title": "Mémoire utilisée (%) - $instance",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
       "datasource": "Demo-0 Prometheus",
       "targets": [
         {
-          "expr": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100",
+          "expr": "(1 - (node_memory_MemAvailable_bytes{instance=\"$instance\"} / node_memory_MemTotal_bytes{instance=\"$instance\"})) * 100",
           "legendFormat": "Mémoire %"
         }
       ]
