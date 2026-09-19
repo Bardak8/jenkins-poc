@@ -100,7 +100,7 @@ pipeline {
 
                             ssh -o StrictHostKeyChecking=no -i /root/.ssh/id_ed25519 admin@$DEMO_VM_IP "
                                 sudo apt-get update &&
-                                sudo apt-get install -y docker.io docker-compose &&
+                                sudo apt-get install -y docker.io docker-compose rsync &&
                                 sudo systemctl disable --now prometheus-node-exporter 2>/dev/null || true &&
                                 sudo mkdir -p /opt/monitoring-stack/pve-exporter &&
                                 mkdir -p /tmp/monitoring-stack
