@@ -5,6 +5,9 @@ resource "kubernetes_config_map" "dashboard_demo_poc" {
     labels = {
       grafana_dashboard = "1"
     }
+    annotations = {
+      grafana_folder = "PoC"
+    }
   }
 
   data = {
@@ -20,6 +23,9 @@ resource "kubernetes_config_map" "dashboard_demo_stack" {
     namespace = "monitoring"
     labels = {
       grafana_dashboard = "1"
+    }
+    annotations = {
+      grafana_folder = "PoC"
     }
   }
 

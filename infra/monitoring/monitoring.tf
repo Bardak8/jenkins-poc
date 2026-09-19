@@ -45,6 +45,11 @@ resource "helm_release" "monitoring" {
         service = {
           type = var.grafana_service_type
         }
+        sidecar = {
+          dashboards = {
+            folderAnnotation = "grafana_folder"
+          }
+        }
         additionalDataSources = [
           {
             name   = "Demo-0 Prometheus"
