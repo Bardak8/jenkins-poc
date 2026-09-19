@@ -47,6 +47,11 @@ pipeline {
                     cp /etc/wireguard-secret/wg0.conf /etc/wireguard/wg0.conf
                     chmod 600 /etc/wireguard/wg0.conf
                     wg-quick up wg0
+
+                    for i in $(seq 1 10); do
+                        [ "$(wg show wg0 latest-handshakes | awk '{print $2}')" != "0" ] && break
+                        sleep 1
+                    done
                 '''
             }
         }

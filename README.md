@@ -101,6 +101,8 @@ Le multi-zone seul ne suffit pas : un volume bloc Scaleway (`sbs-default`) est v
 
 `infra/storage/` déploie Longhorn (réplication de volumes entre nœuds), et le PVC de Jenkins (`infra/jenkins/pvc.tf`) utilise la `StorageClass` `longhorn` à la place de `sbs-default`, avec un réplica par nœud. Migration faite en conditions réelles : pod Jenkins arrêté, copie des données (`rsync`) de l'ancien PVC vers le nouveau via un pod temporaire, bascule de `persistence.existingClaim` dans `infra/jenkins/jenkins.tf`. Retest du `drain` après migration : Jenkins bascule bien sur un autre nœud/zone, volume attaché automatiquement, jobs et historique intacts.
 
+**Point d'attention découvert en conditions réelles** : détruire directement un nœud (`demo-ha-off.sh`) qui héberge encore le pod Jenkins actif laisse un `VolumeAttachment` Kubernetes orphelin pointant vers le nœud disparu — Jenkins reste bloqué en `Init` derrière un volume qui attend indéfiniment un détachement qui n'arrivera jamais. Fix : `kubectl delete volumeattachment <nom>` pour purger la référence fantôme, ce qui débloque un rattachement propre sur le nœud restant. Mieux vaut vider le nœud (`kubectl drain`) avant de le décommissionner plutôt que de le détruire directement.
+
 Limité à 2 zones sur les 3 disponibles en `fr-par` : `fr-par-3` ne propose pas la famille d'instance `DEV1` utilisée ailleurs, et l'alternative disponible (`PRO2-XS`) est bloquée par un quota du compte à 0 (limite de compte Scaleway, pas un choix d'architecture — testé en conditions réelles, `terraform apply` a échoué avec `Quota exceeded on cp_servers_type_PRO2_XS 0/0`).
 
 ## Surveillance externe
