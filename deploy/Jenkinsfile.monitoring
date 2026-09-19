@@ -10,6 +10,8 @@ pipeline {
                     image: prom/prometheus:latest
                     command: ["cat"]
                     tty: true
+                    securityContext:
+                      runAsUser: 1000
                   - name: deploy
                     image: alpine:3.20
                     command: ["cat"]
