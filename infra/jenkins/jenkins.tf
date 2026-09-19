@@ -23,6 +23,10 @@ resource "helm_release" "jenkins" {
         numExecutors = 2
         jenkinsUrl   = var.jenkins_url
         serviceType  = var.jenkins_service_type
+        admin = {
+          username = "admin"
+          password = var.jenkins_admin_password
+        }
         installPlugins = [
           "configuration-as-code",
           "job-dsl",
@@ -51,6 +55,11 @@ resource "helm_release" "jenkins" {
       }
       serviceAccount = {
         create = true
+      }
+      persistence = {
+        annotations = {
+          "helm.sh/resource-policy" = "keep"
+        }
       }
     })
   ]

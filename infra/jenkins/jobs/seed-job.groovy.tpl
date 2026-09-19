@@ -32,7 +32,7 @@ pipelineJob('provision-demo-vm') {
 }
 
 pipelineJob('deploy-monitoring') {
-    description('Déploie node_exporter sur la VM demo-0 via tunnel WireGuard + SSH.')
+    description('Lint + tests + déploiement de la stack Prometheus/Alertmanager sur demo-0 (équivalent générique de monitoring_blagnac).')
 
     definition {
         cpsScm {

@@ -26,10 +26,10 @@ variable "jenkins_chart_version" {
   default     = "5.9.56"
 }
 
-variable "jenkins_admin_password_secret_name" {
-  description = "Nom du Secret Kubernetes portant le mot de passe admin Jenkins"
+variable "jenkins_admin_password" {
+  description = "Mot de passe admin Jenkins, fixe pour survivre à une reconstruction"
   type        = string
-  default     = "jenkins-admin-credentials"
+  sensitive   = true
 }
 
 variable "git_repo_url" {
