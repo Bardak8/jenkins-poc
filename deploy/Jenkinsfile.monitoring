@@ -44,6 +44,7 @@ pipeline {
 
     environment {
         DEMO_VM_IP = '192.168.1.5'
+        ALERT_EMAIL = 'maxime.obry@ynov.com'
     }
 
     stages {
@@ -87,11 +88,17 @@ pipeline {
                         done
                     '''
 
-                    withCredentials([string(credentialsId: 'proxmox-api-token', variable: 'PVE_TOKEN')]) {
+                    withCredentials([
+                        string(credentialsId: 'proxmox-api-token', variable: 'PVE_TOKEN'),
+                        usernamePassword(credentialsId: 'alerting-smtp', usernameVariable: 'SMTP_USER', passwordVariable: 'SMTP_PASS')
+                    ]) {
                         sh '''
                             mkdir -p /root/.ssh
                             cp /root/.ssh-secret/id_ed25519 /root/.ssh/id_ed25519
                             chmod 600 /root/.ssh/id_ed25519
+
+                            sed -i "s/__SMTP_USERNAME__/${SMTP_USER}/; s/__SMTP_PASSWORD__/${SMTP_PASS}/; s/__ALERT_EMAIL__/${ALERT_EMAIL}/" \
+                                deploy/monitoring-stack/alertmanager/alertmanager.yml
 
                             PVE_USER="${PVE_TOKEN%%!*}"
                             REST="${PVE_TOKEN#*!}"

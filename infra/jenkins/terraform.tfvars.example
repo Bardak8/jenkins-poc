@@ -33,3 +33,9 @@ git_credentials_id = "git-poc-token"
 # d'image.
 scaleway_secret_key   = ""
 scw_registry_endpoint = ""
+
+# Sorties alerting_smtp_username / alerting_smtp_password de
+# infra/monitoring/ (une fois son alerting.tf appliqué), pour le
+# credential Jenkins "alerting-smtp" utilisé par deploy-monitoring.
+alerting_smtp_username = ""
+alerting_smtp_password = ""

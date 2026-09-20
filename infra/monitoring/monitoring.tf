@@ -40,6 +40,36 @@ resource "helm_release" "monitoring" {
             limits   = { cpu = "100m", memory = "128Mi" }
           }
         }
+        config = {
+          global = {
+            smtp_smarthost   = "${scaleway_tem_domain.alerts.smtp_host}:${scaleway_tem_domain.alerts.smtp_port}"
+            smtp_from        = "alerting@${scaleway_tem_domain.alerts.name}"
+            smtp_auth_username = scaleway_tem_domain.alerts.smtps_auth_user
+            smtp_auth_password = scaleway_iam_api_key.alerting_smtp.secret_key
+            smtp_require_tls   = true
+          }
+          route = {
+            receiver = "email-alert"
+            group_by = ["alertname"]
+            routes = [
+              {
+                receiver = "email-alert"
+                matchers = ["severity=~\"critical|warning\""]
+              }
+            ]
+          }
+          receivers = [
+            {
+              name = "email-alert"
+              email_configs = [
+                {
+                  to          = var.alert_email
+                  send_resolved = true
+                }
+              ]
+            }
+          ]
+        }
       }
       grafana = {
         image = {
@@ -85,4 +115,47 @@ resource "helm_release" "monitoring" {
   ]
 
   depends_on = [data.scaleway_k8s_cluster.poc]
+}
+
+resource "kubernetes_ingress_v1" "grafana" {
+  count = var.grafana_hostname != "" ? 1 : 0
+
+  metadata {
+    name      = "grafana"
+    namespace = "monitoring"
+    annotations = {
+      "cert-manager.io/cluster-issuer" = "letsencrypt-prod"
+    }
+  }
+
+  spec {
+    ingress_class_name = "nginx"
+
+    tls {
+      hosts       = [var.grafana_hostname]
+      secret_name = "grafana-tls"
+    }
+
+    rule {
+      host = var.grafana_hostname
+
+      http {
+        path {
+          path      = "/"
+          path_type = "Prefix"
+
+          backend {
+            service {
+              name = "monitoring-grafana"
+              port {
+                number = 80
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  depends_on = [helm_release.monitoring]
 }

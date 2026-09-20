@@ -31,3 +31,15 @@ variable "grafana_service_type" {
   type        = string
   default     = "LoadBalancer"
 }
+
+variable "grafana_hostname" {
+  description = "Nom de domaine pour l'ingress Grafana (vide = pas d'ingress)"
+  type        = string
+  default     = ""
+}
+
+variable "alert_email" {
+  description = "Adresse email destinataire des alertes Grafana/Alertmanager (nœuds K8s, Proxmox)"
+  type        = string
+  default     = "maxime.obry@ynov.com"
+}

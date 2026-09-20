@@ -141,3 +141,16 @@ variable "scw_registry_endpoint" {
   type        = string
   default     = ""
 }
+
+variable "alerting_smtp_username" {
+  description = "Utilisateur SMTP (sortie alerting_smtp_username de infra/monitoring/)"
+  type        = string
+  default     = ""
+}
+
+variable "alerting_smtp_password" {
+  description = "Mot de passe SMTP (sortie alerting_smtp_password de infra/monitoring/)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}

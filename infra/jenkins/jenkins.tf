@@ -60,7 +60,7 @@ resource "helm_release" "jenkins" {
         create = true
       }
       persistence = {
-        existingClaim = "jenkins-longhorn"
+        existingClaim = "jenkins-sbs"
       }
     })
   ]

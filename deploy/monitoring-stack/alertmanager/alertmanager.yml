@@ -1,14 +1,22 @@
 global:
   resolve_timeout: 5m
+  smtp_smarthost: 'smtp.tem.scw.cloud:587'
+  smtp_from: 'alerting@mail.obrypoc.fr'
+  smtp_auth_username: '__SMTP_USERNAME__'
+  smtp_auth_password: '__SMTP_PASSWORD__'
+  smtp_require_tls: true
 
 route:
   group_by: ['alertname', 'severity']
   group_wait: 30s
   group_interval: 5m
   repeat_interval: 4h
-  receiver: 'default'
+  receiver: 'email-alert'
 
 receivers:
-  - name: 'default'
+  - name: 'email-alert'
+    email_configs:
+      - to: '__ALERT_EMAIL__'
+        send_resolved: true
 
 inhibit_rules: []

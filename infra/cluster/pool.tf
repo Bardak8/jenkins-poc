@@ -10,7 +10,7 @@ resource "scaleway_k8s_pool" "primary" {
   autohealing            = true
   container_runtime      = "containerd"
   root_volume_type       = "sbs_5k"
-  root_volume_size_in_gb = 20
+  root_volume_size_in_gb = 40
 }
 
 resource "scaleway_k8s_pool" "ha" {

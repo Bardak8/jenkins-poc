@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+# Nécessite ha_enabled=true (au moins 2 nœuds). Depuis le retrait de
+# Longhorn (voir README "Stockage applicatif"), le volume Jenkins
+# (sbs-default) reste verrouillé à sa zone : ce test ne peut réussir que
+# si $NODE et un nœud disponible partagent la même zone. Avec la
+# topologie par défaut de ha_enabled=true (1 nœud par zone), il n'y a
+# alors aucun nœud de repli dans la même zone et le pod reste `Pending`.
 set -euo pipefail
 
 export KUBECONFIG="$HOME/.kube/kubeconfig-k8s-jenkins-poc.yaml"
@@ -29,4 +35,4 @@ echo "==> Remise en service de $NODE"
 kubectl uncordon "$NODE"
 
 echo
-echo "Test terminé : Jenkins a basculé de $NODE vers $NEW_NODE sans perte de données (stockage Longhorn répliqué)."
+echo "Test terminé : Jenkins a basculé de $NODE vers $NEW_NODE sans perte de données."

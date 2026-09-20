@@ -4,10 +4,10 @@ Enchaînent les commandes Terraform/kubectl dans le bon ordre pour les scénario
 
 | Script | Usage |
 |---|---|
-| `demo-up.sh` | Applique tous les modules dans l'ordre (state-backend, cluster, storage, jenkins, monitoring). Point d'entrée pour tout remonter depuis zéro. |
+| `demo-up.sh` | Applique tous les modules dans l'ordre (state-backend, cluster, jenkins, relay, ingress, apps, monitoring, backup). Point d'entrée pour tout remonter depuis zéro. |
 | `demo-ha-on.sh` | Passe à 3 nœuds multi-zone (`fr-par-1/2/3`). |
 | `demo-ha-off.sh` | Repasse à 1 nœud (`fr-par-2`), pour ne pas payer les 2 nœuds en plus entre deux démos. |
-| `demo-failover-test.sh` | Rejoue le test de bascule : cordon/drain le nœud de Jenkins, attend la replanification ailleurs, remet le nœud en service. |
-| `get-urls.sh` | Affiche les URL actuelles de Jenkins et Grafana (LoadBalancer). |
+| `demo-failover-test.sh` | Rejoue le test de bascule : cordon/drain le nœud de Jenkins, attend la replanification ailleurs, remet le nœud en service. Ne fonctionne que si un nœud de repli existe dans la même zone (voir README principal, section stockage). |
+| `get-urls.sh` | Affiche les URL d'accès à Jenkins, Grafana et Isaac-Api. |
 
-Toutes les IP de LoadBalancer changent à chaque recréation du service (destroy/apply, ou bascule de type de service). `get-urls.sh` sert justement à les retrouver rapidement — penser à mettre à jour le moniteur "Jenkins" dans Uptime Kuma si l'IP a changé (pas automatisable proprement : Uptime Kuma n'a pas de config as code, tout est dans sa base SQLite via l'UI).
+Jenkins (VPN uniquement), Grafana et Isaac-Api ont chacun une adresse stable (tunnel WireGuard fixe pour Jenkins, IP publique réservée pour l'ingress partagé de Grafana/Isaac-Api) : elle ne change pas d'un destroy/apply à l'autre, rien à mettre à jour dans Uptime Kuma.

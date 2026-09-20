@@ -22,5 +22,8 @@ wireguard/**/*.conf
 !wireguard/**/*.conf.example
 deploy/monitoring-stack/pve-exporter/pve.yml
 
+# Plans Terraform (binaires, peuvent contenir des secrets en clair)
+tfplan*.out
+
 # Divers
 .DS_Store

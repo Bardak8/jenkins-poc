@@ -1,7 +1,10 @@
-# Déploiement initial "coquille vide" : l'image ci-dessous n'existe pas
-# encore au premier apply (les pods restent en ImagePullBackOff), c'est
-# attendu. Lancer le job Jenkins "deploy-isaac-app" une première fois
-# pour builder et pousser une image réelle (voir output "next_step").
+# Le pipeline "deploy-isaac-app" pousse toujours un tag ":latest" en plus
+# du tag numéroté/release (voir JenkinsFIle du repo Isaac-Api). Le
+# Deployment pointe donc sur ce tag stable : il survit à un destroy/apply
+# du cluster en repartant sur la dernière image qui a réellement tourné.
+# Seule exception : le tout premier apply, avant qu'aucun build n'ait
+# jamais été lancé (registre vide) — les pods restent en ImagePullBackOff
+# jusqu'au premier passage du job Jenkins "deploy-isaac-app".
 resource "kubernetes_deployment" "isaac_fansite" {
   wait_for_rollout = false
 
@@ -25,7 +28,7 @@ resource "kubernetes_deployment" "isaac_fansite" {
       spec {
         container {
           name  = "isaac-fansite"
-          image = "${scaleway_registry_namespace.apps.endpoint}/isaac-fansite:bootstrap"
+          image = "${scaleway_registry_namespace.apps.endpoint}/isaac-fansite:latest"
 
           port {
             container_port = 8080
@@ -33,7 +36,7 @@ resource "kubernetes_deployment" "isaac_fansite" {
 
           env {
             name  = "DB_HOST"
-            value = kubernetes_service.isaac_postgres.metadata[0].name
+            value = "isaac-postgres-rw"
           }
           env {
             name  = "DB_PORT"

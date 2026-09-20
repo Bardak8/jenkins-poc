@@ -70,3 +70,23 @@ resource "kubernetes_secret" "proxmox_api_token" {
     text = var.proxmox_api_token
   }
 }
+
+resource "kubernetes_secret" "alerting_smtp" {
+  count = var.alerting_smtp_password != "" ? 1 : 0
+
+  metadata {
+    name      = "alerting-smtp"
+    namespace = "ci-cd"
+    labels = {
+      "jenkins.io/credentials-type" = "usernamePassword"
+    }
+    annotations = {
+      "jenkins.io/credentials-description" = "SMTP alerting (stack Prometheus/Alertmanager demo-0)"
+    }
+  }
+
+  data = {
+    username = var.alerting_smtp_username
+    password = var.alerting_smtp_password
+  }
+}
