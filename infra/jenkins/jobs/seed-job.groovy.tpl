@@ -58,6 +58,51 @@ pipelineJob('deploy-monitoring') {
     }
 }
 
+pipelineJob('deploy-isaac-app') {
+    description('Build (kaniko) + déploiement de Isaac-Api dans le namespace apps du cluster Kapsule, déclenché à la publication d\'une release GitHub (pas sur chaque push).')
+
+    definition {
+        cpsScm {
+            scm {
+                git {
+                    remote {
+                        url('${isaac_git_repo_url}')
+                        credentials('${git_credentials_id}')
+                    }
+                    branch('main')
+                }
+            }
+            scriptPath('JenkinsFIle')
+            lightweight(true)
+        }
+    }
+
+    properties {
+        pipelineTriggers {
+            triggers {
+                genericTrigger {
+                    genericVariables {
+                        genericVariable {
+                            key('RELEASE_TAG')
+                            value('$.release.tag_name')
+                        }
+                        genericVariable {
+                            key('ACTION')
+                            value('$.action')
+                        }
+                    }
+                    token('${isaac_webhook_token}')
+                    causeString('Release $RELEASE_TAG publiée sur Isaac-Api')
+                    regexpFilterText('$ACTION')
+                    regexpFilterExpression('^published$')
+                    printPostContent(false)
+                    printContributedVariables(false)
+                }
+            }
+        }
+    }
+}
+
 pipelineJob('deploy-app') {
     description('Déploie Traefik + un site de démo sur les VM demo-1 et suivantes.')
 

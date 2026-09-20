@@ -1,0 +1,12 @@
+# Copier ce fichier en terraform.tfvars (gitignoré) et renseigner vos valeurs.
+
+project_id = "PASTE_THE_ISOLATED_PROJECT_ID_HERE"
+
+# Cluster Kapsule créé manuellement via la console, dans le projet ci-dessus.
+cluster_id = "PASTE_THE_EXISTING_CLUSTER_ID_HERE"
+
+isaac_db_password = "PASTE_A_STRONG_PASSWORD_HERE"
+
+# Optionnel : laisser vide pour ne pas exposer isaac-fansite via l'Ingress
+# (accès par kubectl port-forward uniquement pendant la démo).
+isaac_hostname = ""

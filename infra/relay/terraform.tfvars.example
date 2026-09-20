@@ -1,0 +1,17 @@
+# Copier ce fichier en terraform.tfvars (gitignoré) et renseigner vos valeurs.
+
+project_id = "PASTE_THE_ISOLATED_PROJECT_ID_HERE"
+
+# Générer avec : wg genkey | tee privatekey | wg pubkey > publickey
+relay_laptop_private_key    = "PASTE_FROM_wireguard/relay-laptop/privatekey"
+laptop_wireguard_public_key = "PASTE_FROM_wireguard/laptop/publickey"
+
+relay_kapsule_private_key           = "PASTE_FROM_wireguard/relay-kapsule/privatekey"
+collab_gateway_wireguard_public_key = "PASTE_FROM_wireguard/collab-gateway/publickey"
+
+# Réutilise la paire existante wireguard/collaborateur/ (déjà connue de pfSense).
+relay_ovh_private_key = "PASTE_FROM_wireguard/collaborateur/privatekey"
+
+# Déjà connu depuis la mise en place initiale de VPN_COLLAB sur pfSense.
+pfsense_wireguard_public_key = "PASTE_PFSENSE_VPN_COLLAB_PUBLIC_KEY_HERE"
+pfsense_collab_wan_endpoint  = "PASTE_HOST:51821"

@@ -1,7 +1,9 @@
 locals {
   seed_job_script = templatefile("${path.module}/jobs/seed-job.groovy.tpl", {
-    git_repo_url       = var.git_repo_url
-    git_credentials_id = var.git_credentials_id
+    git_repo_url        = var.git_repo_url
+    git_credentials_id  = var.git_credentials_id
+    isaac_git_repo_url  = var.isaac_git_repo_url
+    isaac_webhook_token = var.isaac_webhook_token
   })
 
   jenkins_casc = templatefile("${path.module}/jcasc/jenkins-casc.yaml.tpl", {
@@ -31,6 +33,8 @@ resource "helm_release" "jenkins" {
           "configuration-as-code",
           "job-dsl",
           "git",
+          "github",
+          "generic-webhook-trigger",
           "workflow-aggregator",
           "credentials-binding",
           "kubernetes",

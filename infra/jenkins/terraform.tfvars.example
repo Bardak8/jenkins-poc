@@ -5,10 +5,31 @@ project_id = "PASTE_THE_ISOLATED_PROJECT_ID_HERE"
 # Cluster Kapsule créé manuellement via la console, dans le projet ci-dessus.
 cluster_id = "PASTE_THE_EXISTING_CLUSTER_ID_HERE"
 
-# Laisser vide au premier apply (voir output "next_step"), renseigner
-# ensuite l'IP/DNS du service Jenkins et ré-appliquer.
-jenkins_url = ""
+# Jenkins n'est jamais exposé publiquement : accessible uniquement via
+# le VPN du relais (infra/relay/), en HTTP simple (le tunnel WireGuard
+# fait déjà le chiffrement). jenkins_hostname reste VIDE volontairement :
+# on ne crée pas d'Ingress public pour Jenkins (voir ingress.tf).
+jenkins_url      = "http://jenkins.obrypoc.fr:8080"
+jenkins_hostname = ""
+
+# Clés WireGuard du pod collab-gateway (accès humain vers Jenkins via le
+# relais). Générer avec : wg genkey | tee privatekey | wg pubkey > publickey
+collab_gateway_wireguard_private_key = "PASTE_FROM_wireguard/collab-gateway/privatekey"
+relay_kapsule_wireguard_public_key   = "PASTE_FROM_wireguard/relay-kapsule/publickey"
+relay_kapsule_wan_endpoint           = "PASTE_relay_public_ip_FROM_infra/relay/:51821"
+
+# Secret partagé pour le webhook GitHub "release" d'Isaac-Api (relayé par
+# le VPS, infra/relay/, endpoint public :8090). Générer avec :
+# openssl rand -hex 20 — puis reporter la même valeur dans la config du
+# webhook GitHub (Isaac-Api > Settings > Webhooks).
+isaac_webhook_token = "PASTE_A_RANDOM_TOKEN_HERE"
 
 # À renseigner une fois le dépôt poussé sur un remote Git.
 git_repo_url       = "https://github.com/CHANGEME/jenkins-poc.git"
 git_credentials_id = "git-poc-token"
+
+# Laisser vide jusqu'à ce qu'infra/apps/ soit appliqué (voir son output
+# registry_endpoint), sinon le job deploy-isaac-app ne pourra pas pousser
+# d'image.
+scaleway_secret_key   = ""
+scw_registry_endpoint = ""

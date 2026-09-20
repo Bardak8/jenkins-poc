@@ -30,6 +30,30 @@ resource "kubernetes_secret" "deploy_ssh_key" {
   }
 }
 
+resource "kubernetes_secret" "scw_registry_credentials" {
+  count = var.scaleway_secret_key != "" && var.scw_registry_endpoint != "" ? 1 : 0
+
+  metadata {
+    name      = "scw-registry-credentials"
+    namespace = "ci-cd"
+  }
+
+  type = "kubernetes.io/dockerconfigjson"
+
+  data = {
+    ".dockerconfigjson" = jsonencode({
+      auths = {
+        # Registre Scaleway : login libre, mot de passe = clé secrète API.
+        # À vérifier contre la doc Scaleway Container Registry au moment
+        # de l'apply (le format d'auth peut évoluer).
+        (split("/", var.scw_registry_endpoint)[0]) = {
+          auth = base64encode("nologin:${var.scaleway_secret_key}")
+        }
+      }
+    })
+  }
+}
+
 resource "kubernetes_secret" "proxmox_api_token" {
   metadata {
     name      = "proxmox-api-token"

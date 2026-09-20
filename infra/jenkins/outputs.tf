@@ -16,5 +16,5 @@ output "jenkins_namespace" {
 
 output "next_step" {
   description = "Rappel de la procédure post-apply"
-  value       = "Récupérer l'IP du service jenkins (kubectl get svc -n ci-cd), la renseigner dans var.jenkins_url, puis relancer terraform apply pour figer l'URL dans JCasC."
+  value       = "Jenkins reste en ClusterIP, jamais exposé publiquement (jenkins_hostname doit rester vide). Accès uniquement via le VPN du relais (infra/relay/) : une fois collab-gateway up, jenkins_url=http://jenkins.obrypoc.fr:8080 et DNS jenkins.obrypoc.fr -> 10.10.40.2 (IP tunnel du pod collab-gateway, jamais joignable hors VPN)."
 }
