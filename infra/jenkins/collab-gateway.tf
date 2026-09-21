@@ -1,8 +1,10 @@
 # Deuxième passerelle WireGuard, dédiée à l'accès collaborateur (humain)
-# vers Jenkins, distincte de la passerelle "outillage" (gateway.tf) qui
-# reste réservée à l'automatisation. Compose vers le relais Scaleway
-# (infra/relay/), jamais exposée publiquement : Jenkins n'est joignable
-# qu'après connexion au VPN du relais.
+# vers Jenkins et Grafana, distincte de la passerelle "outillage"
+# (gateway.tf) qui reste réservée à l'automatisation. Compose vers le
+# relais Scaleway (infra/relay/), jamais exposée publiquement : ni
+# Jenkins ni Grafana ne sont joignables hors connexion au VPN du relais
+# (grafana_hostname reste vide dans infra/monitoring, donc pas d'Ingress
+# public pour Grafana non plus).
 resource "kubernetes_secret" "collab_gateway_wireguard" {
   metadata {
     name      = "collab-gateway-wireguard"
@@ -64,6 +66,7 @@ resource "kubernetes_deployment" "collab_gateway" {
             chmod 600 /etc/wireguard/wg0.conf
             wg-quick up wg0
             socat TCP-LISTEN:8080,fork,reuseaddr,bind=10.10.40.2 TCP:jenkins.ci-cd.svc.cluster.local:8080 &
+            socat TCP-LISTEN:3000,fork,reuseaddr,bind=10.10.40.2 TCP:monitoring-grafana.monitoring.svc.cluster.local:80 &
             tail -f /dev/null
             EOT
           ]

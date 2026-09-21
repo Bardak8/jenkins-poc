@@ -20,6 +20,6 @@ Interface sur `http://localhost:3001`. Premier lancement : créer le compte admi
 | Cluster Kubernetes | HTTP(s) | `https://3e4d2ca8-f349-48e1-a37c-fca928340290.api.k8s.fr-par.scw.cloud:6443` | 200-499 | API du control plane Scaleway. Répond (même en 401/403 sans authentification) tant que le cluster et Scaleway sont en vie. |
 | Jenkins | HTTP(s) | `http://jenkins.obrypoc.fr:8080/login` | 200 | Jenkins n'est joignable que via le VPN du relais (`infra/relay/`) : ce moniteur ne fonctionne que si le poste qui héberge Uptime Kuma a son tunnel WireGuard vers le relais actif. Adresse stable, rien à remettre à jour d'une démo à l'autre. |
 | Isaac-Api | HTTP(s) | `https://isaac.obrypoc.fr` | 200 | Public, aucune dépendance VPN. IP réservée (`infra/ingress/`), stable même après un destroy/apply de l'ingress. |
-| Grafana | HTTP(s) | `https://grafana.obrypoc.fr` | 200-302 | Public, même IP réservée que Isaac-Api. |
+| Grafana | HTTP(s) | `http://grafana.obrypoc.fr:3000` | 200-302 | Grafana n'est joignable que via le VPN du relais (`infra/relay/`), même mécanisme que Jenkins : ce moniteur ne fonctionne que si le poste qui héberge Uptime Kuma a son tunnel WireGuard vers le relais actif. |
 
 Le moniteur "Cluster Kubernetes" est le plus important des quatre : il détecte à la fois une panne du cluster et une panne générale Scaleway, sans dépendre d'aucun état applicatif (Jenkins, ingress, etc.).

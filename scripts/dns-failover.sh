@@ -28,7 +28,7 @@ if [ -f "$ENV_FILE" ]; then
 fi
 
 ZONE="obrypoc.fr"
-SUBDOMAINS=("isaac" "grafana")
+SUBDOMAINS=("isaac")
 PRIMARY_IP="212.47.239.30"
 CHECK_URL_HOST="isaac.obrypoc.fr"
 FAIL_THRESHOLD=3

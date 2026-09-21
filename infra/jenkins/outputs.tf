@@ -16,5 +16,5 @@ output "jenkins_namespace" {
 
 output "next_step" {
   description = "Rappel de la procédure post-apply"
-  value       = "Jenkins reste en ClusterIP, jamais exposé publiquement (jenkins_hostname doit rester vide). Accès uniquement via le VPN du relais (infra/relay/) : une fois collab-gateway up, jenkins_url=http://jenkins.obrypoc.fr:8080 et DNS jenkins.obrypoc.fr -> 10.10.40.2 (IP tunnel du pod collab-gateway, jamais joignable hors VPN)."
+  value       = "Jenkins reste en ClusterIP, jamais exposé publiquement (jenkins_hostname doit rester vide). Grafana pareil (grafana_hostname doit rester vide dans infra/monitoring). Accès uniquement via le VPN du relais (infra/relay/) : une fois collab-gateway up, jenkins_url=http://jenkins.obrypoc.fr:8080 (DNS -> 10.10.40.2) et grafana=http://grafana.obrypoc.fr:3000 (DNS -> 10.10.40.2 aussi), IP tunnel du pod collab-gateway, jamais joignable hors VPN."
 }

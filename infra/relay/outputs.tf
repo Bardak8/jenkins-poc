@@ -5,5 +5,5 @@ output "relay_public_ip" {
 
 output "next_step" {
   description = "Rappel de la procédure post-apply"
-  value       = "1) Configurer le client WireGuard du poste de travail avec Endpoint=<relay_public_ip>:51820. 2) Créer le pod collab-gateway (infra/jenkins/) avec pour peer Endpoint=<relay_public_ip>:51821. 3) Pointer jenkins.obrypoc.fr en DNS vers 10.10.40.2 (IP tunnel du pod, jamais joignable hors VPN)."
+  value       = "1) Configurer le client WireGuard du poste de travail avec Endpoint=<relay_public_ip>:51820. 2) Créer le pod collab-gateway (infra/jenkins/) avec pour peer Endpoint=<relay_public_ip>:51821. 3) Pointer jenkins.obrypoc.fr ET grafana.obrypoc.fr en DNS vers 10.10.40.2 (IP tunnel du pod, jamais joignable hors VPN)."
 }
