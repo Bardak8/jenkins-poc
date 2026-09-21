@@ -6,6 +6,6 @@ resource "kubernetes_secret" "isaac_db_credentials" {
 
   data = {
     username = "isaac"
-    password = var.isaac_db_password
+    password = base64decode(data.scaleway_secret_version.isaac_db_password.data)
   }
 }

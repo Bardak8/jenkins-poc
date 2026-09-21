@@ -17,7 +17,6 @@ echo "==> [1/5] Destruction de Jenkins et isaac-postgres (simule une perte total
 (cd "$ROOT/infra/jenkins" && terraform destroy -auto-approve)
 (cd "$ROOT/infra/apps" && terraform destroy -auto-approve \
     -target=kubectl_manifest.isaac_postgres_cluster \
-    -target=kubernetes_persistent_volume_claim.isaac_postgres \
     -target=kubernetes_secret.isaac_db_credentials_basic_auth)
 
 echo

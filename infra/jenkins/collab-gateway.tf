@@ -12,7 +12,7 @@ resource "kubernetes_secret" "collab_gateway_wireguard" {
   data = {
     "wg0.conf" = <<-EOT
       [Interface]
-      PrivateKey = ${var.collab_gateway_wireguard_private_key}
+      PrivateKey = ${base64decode(data.scaleway_secret_version.jenkins["collab_gateway_wireguard_key"].data)}
       Address = 10.10.40.2/24
 
       [Peer]

@@ -7,7 +7,7 @@ resource "kubernetes_secret" "deploy_wireguard" {
   data = {
     "wg0.conf" = <<-EOT
       [Interface]
-      PrivateKey = ${var.deploy_wireguard_private_key}
+      PrivateKey = ${base64decode(data.scaleway_secret_version.jenkins["deploy_wireguard_key"].data)}
       Address = 10.10.10.3/24
 
       [Peer]
@@ -26,7 +26,7 @@ resource "kubernetes_secret" "deploy_ssh_key" {
   }
 
   data = {
-    "id_ed25519" = file(pathexpand(var.deploy_ssh_private_key_path))
+    "id_ed25519" = base64decode(data.scaleway_secret_version.jenkins["deploy_ssh_key"].data)
   }
 }
 
@@ -47,7 +47,7 @@ resource "kubernetes_secret" "scw_registry_credentials" {
         # À vérifier contre la doc Scaleway Container Registry au moment
         # de l'apply (le format d'auth peut évoluer).
         (split("/", var.scw_registry_endpoint)[0]) = {
-          auth = base64encode("nologin:${var.scaleway_secret_key}")
+          auth = base64encode("nologin:${base64decode(data.scaleway_secret_version.jenkins["scw_registry_secret_key"].data)}")
         }
       }
     })
@@ -67,7 +67,7 @@ resource "kubernetes_secret" "proxmox_api_token" {
   }
 
   data = {
-    text = var.proxmox_api_token
+    text = base64decode(data.scaleway_secret_version.jenkins["proxmox_api_token"].data)
   }
 }
 
@@ -86,7 +86,7 @@ resource "kubernetes_secret" "alerting_smtp" {
   }
 
   data = {
-    username = var.alerting_smtp_username
-    password = var.alerting_smtp_password
+    username = base64decode(data.scaleway_secret_version.jenkins["alerting_smtp_username"].data)
+    password = base64decode(data.scaleway_secret_version.jenkins["alerting_smtp_password"].data)
   }
 }

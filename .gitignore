@@ -21,6 +21,12 @@ wireguard/**/privatekey*
 wireguard/**/*.conf
 !wireguard/**/*.conf.example
 deploy/monitoring-stack/pve-exporter/pve.yml
+.secrets/*
+!.secrets/*.example
+
+# Config locale / scratch, pas partie du livrable
+.mcp.json
+PROMPTS_SCHEMAS.txt
 
 # Plans Terraform (binaires, peuvent contenir des secrets en clair)
 tfplan*.out

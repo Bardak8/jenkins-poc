@@ -69,7 +69,7 @@ resource "kubernetes_cron_job_v1" "jenkins_backup" {
 
             container {
               name  = "snapshot"
-              image = "bitnami/kubectl:1.31"
+              image = "alpine/k8s:1.29.2"
 
               command = ["/bin/sh", "-c"]
               args = [
@@ -87,7 +87,7 @@ resource "kubernetes_cron_job_v1" "jenkins_backup" {
                 spec:
                   volumeSnapshotClassName: scw-snapshot-retain
                   source:
-                    persistentVolumeClaimName: jenkins
+                    persistentVolumeClaimName: jenkins-sbs
                 EOF
                 echo "Snapshot $NAME créé."
 
