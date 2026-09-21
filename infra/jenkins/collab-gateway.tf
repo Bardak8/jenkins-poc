@@ -5,6 +5,11 @@
 # Jenkins ni Grafana ne sont joignables hors connexion au VPN du relais
 # (grafana_hostname reste vide dans infra/monitoring, donc pas d'Ingress
 # public pour Grafana non plus).
+#
+# Expose aussi l'API Prometheus (port 9090) : lue par le moniteur externe
+# Uptime Kuma (external-monitoring/uptime-kuma/) pour vérifier que le
+# "battement de cœur" (infra/monitoring/rules/watchdog.yml) avance
+# toujours, indépendamment du cluster qu'il observe.
 resource "kubernetes_secret" "collab_gateway_wireguard" {
   metadata {
     name      = "collab-gateway-wireguard"
@@ -67,6 +72,7 @@ resource "kubernetes_deployment" "collab_gateway" {
             wg-quick up wg0
             socat TCP-LISTEN:8080,fork,reuseaddr,bind=10.10.40.2 TCP:jenkins.ci-cd.svc.cluster.local:8080 &
             socat TCP-LISTEN:3000,fork,reuseaddr,bind=10.10.40.2 TCP:monitoring-grafana.monitoring.svc.cluster.local:80 &
+            socat TCP-LISTEN:9090,fork,reuseaddr,bind=10.10.40.2 TCP:monitoring-kube-prometheus-prometheus.monitoring.svc.cluster.local:9090 &
             tail -f /dev/null
             EOT
           ]

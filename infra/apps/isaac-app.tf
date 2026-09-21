@@ -91,6 +91,13 @@ resource "kubernetes_deployment" "isaac_fansite" {
       }
     }
   }
+
+  # Le HorizontalPodAutoscaler (autoscaling.tf) pilote replicas en direct
+  # une fois déployé : sans ce lifecycle, Terraform le ramènerait à 2 à
+  # chaque apply et se battrait avec lui.
+  lifecycle {
+    ignore_changes = [spec[0].replicas]
+  }
 }
 
 resource "kubernetes_service" "isaac_fansite" {

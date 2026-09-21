@@ -80,6 +80,40 @@ resource "kubernetes_network_policy_v1" "allow_to_isaac_postgres" {
   }
 }
 
+resource "kubernetes_network_policy_v1" "allow_cnpg_operator_status" {
+  metadata {
+    name      = "allow-cnpg-operator-status"
+    namespace = kubernetes_namespace.apps.metadata[0].name
+  }
+
+  spec {
+    pod_selector {
+      match_labels = { "cnpg.io/cluster" = "isaac-postgres" }
+    }
+
+    ingress {
+      # L'opérateur CNPG (namespace cnpg-system) interroge chaque instance
+      # sur son port de statut (8000) pour connaître l'état du cluster
+      # (primaire, réplication, santé). Flux manquant ici initialement :
+      # découvert via `kubectl describe cluster` qui remontait "Instance
+      # Status Extraction Error: HTTP communication issue" une fois le
+      # refus par défaut en place.
+      from {
+        namespace_selector {
+          match_labels = { "kubernetes.io/metadata.name" = "cnpg-system" }
+        }
+      }
+
+      ports {
+        port     = "8000"
+        protocol = "TCP"
+      }
+    }
+
+    policy_types = ["Ingress"]
+  }
+}
+
 resource "kubernetes_network_policy_v1" "allow_monitoring_scrape_isaac_postgres" {
   metadata {
     name      = "allow-monitoring-scrape-isaac-postgres"
