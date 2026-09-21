@@ -11,12 +11,16 @@ sudo wg show wg0
 
 section "Résolution DNS"
 echo "jenkins.obrypoc.fr -> $(getent hosts jenkins.obrypoc.fr | awk '{print $1}')"
+echo "grafana.obrypoc.fr -> $(getent hosts grafana.obrypoc.fr | awk '{print $1}')"
 echo "isaac.obrypoc.fr   -> $(getent hosts isaac.obrypoc.fr | awk '{print $1}')"
 echo "192.168.1.3 (Proxmox, LAN)"
 
 section "Route utilisée par le système pour chaque destination"
 echo "-- Jenkins (doit passer par wg0) --"
 ip route get "$(getent hosts jenkins.obrypoc.fr | awk '{print $1}')"
+echo
+echo "-- Grafana (doit passer par wg0, même tunnel que Jenkins) --"
+ip route get "$(getent hosts grafana.obrypoc.fr | awk '{print $1}')"
 echo
 echo "-- Proxmox LAN (doit passer par wg0) --"
 ip route get 192.168.1.3
@@ -26,6 +30,9 @@ ip route get 139.99.130.72
 
 section "Ping Jenkins (via tunnel, wg0)"
 ping -c 4 "$(getent hosts jenkins.obrypoc.fr | awk '{print $1}')"
+
+section "Ping Grafana (via tunnel, wg0)"
+ping -c 4 "$(getent hosts grafana.obrypoc.fr | awk '{print $1}')"
 
 section "Ping Proxmox LAN (via tunnel, wg0 -> rebond -> pfSense)"
 ping -c 4 192.168.1.3
@@ -41,7 +48,8 @@ traceroute -n -m 15 139.99.130.72 2>&1 || tracepath 139.99.130.72
 
 section "Test applicatif final"
 curl -s -o /dev/null -w "Jenkins  : %{http_code}\n" --max-time 10 http://jenkins.obrypoc.fr:8080/login
+curl -s -o /dev/null -w "Grafana  : %{http_code}\n" --max-time 10 http://grafana.obrypoc.fr:3000/
 curl -sk -o /dev/null -w "Isaac-Api: %{http_code}\n" --max-time 10 https://isaac.obrypoc.fr/
 
 echo
-echo "Résumé : Jenkins et le LAN Proxmox ne sont joignables qu'en passant par wg0 (le rebond) ; l'IP publique de Proxmox emprunte un chemin réseau totalement différent, hors tunnel."
+echo "Résumé : Jenkins, Grafana et le LAN Proxmox ne sont joignables qu'en passant par wg0 (le rebond) ; l'IP publique de Proxmox emprunte un chemin réseau totalement différent, hors tunnel."
