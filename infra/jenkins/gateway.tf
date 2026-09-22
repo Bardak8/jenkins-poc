@@ -47,23 +47,16 @@ resource "kubernetes_deployment" "gateway" {
       spec {
         container {
           name  = "gateway"
-          image = "alpine:3.20"
+          image = "${var.scw_registry_endpoint}/wg-gateway:1.0.0"
 
-          command = ["/bin/sh", "-c"]
-          args = [
-            <<-EOT
-            set -eu
-            apk add --no-cache wireguard-tools openssh-client socat
-            mkdir -p /etc/wireguard
-            cp /etc/wireguard-secret/wg0.conf /etc/wireguard/wg0.conf
-            chmod 600 /etc/wireguard/wg0.conf
-            wg-quick up wg0
-            socat TCP-LISTEN:8006,fork,reuseaddr TCP:${var.proxmox_lan_ip}:8006 &
-            socat TCP-LISTEN:9100,fork,reuseaddr TCP:192.168.1.5:9100 &
-            socat TCP-LISTEN:9090,fork,reuseaddr TCP:192.168.1.5:9090 &
-            tail -f /dev/null
-            EOT
-          ]
+          env {
+            name = "SOCAT_RULES"
+            value = join("\n", [
+              "TCP-LISTEN:8006,fork,reuseaddr TCP:${var.proxmox_lan_ip}:8006",
+              "TCP-LISTEN:9100,fork,reuseaddr TCP:192.168.1.5:9100",
+              "TCP-LISTEN:9090,fork,reuseaddr TCP:192.168.1.5:9090",
+            ])
+          }
 
           security_context {
             capabilities {
@@ -83,6 +76,10 @@ resource "kubernetes_deployment" "gateway" {
           secret {
             secret_name = kubernetes_secret.gateway_wireguard.metadata[0].name
           }
+        }
+
+        image_pull_secrets {
+          name = kubernetes_secret.scw_registry_credentials[0].metadata[0].name
         }
       }
     }

@@ -59,23 +59,16 @@ resource "kubernetes_deployment" "collab_gateway" {
       spec {
         container {
           name  = "collab-gateway"
-          image = "alpine:3.20"
+          image = "${var.scw_registry_endpoint}/wg-gateway:1.0.0"
 
-          command = ["/bin/sh", "-c"]
-          args = [
-            <<-EOT
-            set -eu
-            apk add --no-cache wireguard-tools socat
-            mkdir -p /etc/wireguard
-            cp /etc/wireguard-secret/wg0.conf /etc/wireguard/wg0.conf
-            chmod 600 /etc/wireguard/wg0.conf
-            wg-quick up wg0
-            socat TCP-LISTEN:8080,fork,reuseaddr,bind=10.10.40.2 TCP:jenkins.ci-cd.svc.cluster.local:8080 &
-            socat TCP-LISTEN:3000,fork,reuseaddr,bind=10.10.40.2 TCP:monitoring-grafana.monitoring.svc.cluster.local:80 &
-            socat TCP-LISTEN:9090,fork,reuseaddr,bind=10.10.40.2 TCP:monitoring-kube-prometheus-prometheus.monitoring.svc.cluster.local:9090 &
-            tail -f /dev/null
-            EOT
-          ]
+          env {
+            name = "SOCAT_RULES"
+            value = join("\n", [
+              "TCP-LISTEN:8080,fork,reuseaddr,bind=10.10.40.2 TCP:jenkins.ci-cd.svc.cluster.local:8080",
+              "TCP-LISTEN:3000,fork,reuseaddr,bind=10.10.40.2 TCP:monitoring-grafana.monitoring.svc.cluster.local:80",
+              "TCP-LISTEN:9090,fork,reuseaddr,bind=10.10.40.2 TCP:monitoring-kube-prometheus-prometheus.monitoring.svc.cluster.local:9090",
+            ])
+          }
 
           security_context {
             capabilities {
@@ -95,6 +88,10 @@ resource "kubernetes_deployment" "collab_gateway" {
           secret {
             secret_name = kubernetes_secret.collab_gateway_wireguard.metadata[0].name
           }
+        }
+
+        image_pull_secrets {
+          name = kubernetes_secret.scw_registry_credentials[0].metadata[0].name
         }
       }
     }
