@@ -70,6 +70,14 @@ resource "kubernetes_network_policy_v1" "allow_to_isaac_postgres" {
         }
       }
 
+      # Pods de restauration/maintenance ponctuels (scripts/demo-restore-from-backup.sh),
+      # label posé explicitement sur ces pods éphémères, jamais sur autre chose
+      from {
+        pod_selector {
+          match_labels = { role = "db-admin-access" }
+        }
+      }
+
       ports {
         port     = "5432"
         protocol = "TCP"

@@ -1,7 +1,8 @@
-# Volume réseau (CSI Scaleway natif) : détaché du nœud, contrairement à
-# Longhorn. Si un nœud meurt, le volume se rattache automatiquement à un
-# nœud sain (pas de perte de données, juste le temps que Kubernetes
-# reprogramme le pod ailleurs).
+# Volume répliqué (Longhorn, infra/jenkins/longhorn.tf) : contrairement à
+# sbs-default, verrouillé à sa zone de création, ce volume a des répliques
+# sur plusieurs nœuds/zones. Si le nœud qui porte Jenkins meurt, une
+# réplique saine ailleurs permet au pod de redémarrer sans attendre le
+# retour du nœud d'origine.
 resource "kubernetes_persistent_volume_claim" "jenkins_sbs" {
   metadata {
     name      = "jenkins-sbs"
@@ -10,7 +11,7 @@ resource "kubernetes_persistent_volume_claim" "jenkins_sbs" {
 
   spec {
     access_modes       = ["ReadWriteOnce"]
-    storage_class_name = "sbs-default"
+    storage_class_name = "longhorn"
 
     resources {
       requests = {
@@ -20,4 +21,6 @@ resource "kubernetes_persistent_volume_claim" "jenkins_sbs" {
   }
 
   wait_until_bound = false
+
+  depends_on = [helm_release.longhorn]
 }

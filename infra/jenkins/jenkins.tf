@@ -65,5 +65,11 @@ resource "helm_release" "jenkins" {
     })
   ]
 
-  depends_on = [data.scaleway_k8s_cluster.poc]
+  # existingClaim ci-dessus est un nom en dur, Terraform n'y voit donc
+  # aucune dépendance implicite vers le PVC : sans ce depends_on
+  # explicite, un destroy peut tenter de supprimer le PVC avant que le
+  # pod Jenkins qui le monte soit parti, et rester bloqué sur le
+  # finaliseur pvc-protection (vécu en vrai lors de la migration
+  # Longhorn).
+  depends_on = [data.scaleway_k8s_cluster.poc, kubernetes_persistent_volume_claim.jenkins_sbs]
 }

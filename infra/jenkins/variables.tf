@@ -26,6 +26,18 @@ variable "jenkins_chart_version" {
   default     = "5.9.56"
 }
 
+variable "longhorn_chart_version" {
+  description = "Version du chart Helm Longhorn"
+  type        = string
+  default     = "1.7.2"
+}
+
+variable "replica_count" {
+  description = "Nombre de réplicas par volume Longhorn (un par nœud disponible)"
+  type        = number
+  default     = 3
+}
+
 variable "jenkins_admin_password" {
   description = "Mot de passe admin Jenkins, fixe pour survivre à une reconstruction"
   type        = string

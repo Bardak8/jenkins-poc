@@ -3,11 +3,18 @@
 # - collab-gateway n'a aucun Service, son tunnel WireGuard sort en connexion
 #   sortante vers le relais ; un refus d'ENTRÉE ne le concerne pas (le
 #   retour de connexion est autorisé par le suivi de connexion).
-# - jenkins reçoit sur 8080 seulement depuis collab-gateway (le socat qui
-#   relaie l'accès humain).
+# - jenkins reçoit sur 8080 depuis collab-gateway (le socat qui relaie
+#   l'accès humain) et depuis les agents de build éphémères (connexion
+#   JNLP de l'agent vers le contrôleur, label posé automatiquement par
+#   le plugin Kubernetes de Jenkins sur chaque pod agent qu'il crée).
 # - gateway reçoit sur 8006 depuis jenkins (accès API Proxmox pour
 #   target-infra/vms) et sur 9100/9090 depuis le namespace monitoring
-#   (scraping Prometheus des métriques OVH/Proxmox de démo).
+#   (scraping Prometheus des métriques OVH/Proxmox de démo). Le terraform
+#   apply de target-infra/vms/demo s'exécute dans le pod agent éphémère
+#   (label jenkins/jenkins-jenkins-agent=true), pas dans le contrôleur :
+#   constaté en direct (agent bloqué en timeout sur gateway:8006 alors que
+#   le tunnel WireGuard et le socat côté gateway fonctionnaient), la règle
+#   doit donc couvrir les deux pod-selectors, pas seulement le contrôleur.
 resource "kubernetes_network_policy_v1" "cicd_default_deny_ingress" {
   metadata {
     name      = "default-deny-ingress"
@@ -48,6 +55,38 @@ resource "kubernetes_network_policy_v1" "allow_collab_gateway_to_jenkins" {
   }
 }
 
+resource "kubernetes_network_policy_v1" "allow_agents_to_jenkins" {
+  metadata {
+    name      = "allow-agents-to-jenkins"
+    namespace = "ci-cd"
+  }
+
+  spec {
+    pod_selector {
+      match_labels = { "app.kubernetes.io/component" = "jenkins-controller" }
+    }
+
+    ingress {
+      from {
+        pod_selector {
+          match_labels = { "jenkins/jenkins-jenkins-agent" = "true" }
+        }
+      }
+
+      ports {
+        port     = "8080"
+        protocol = "TCP"
+      }
+      ports {
+        port     = "50000"
+        protocol = "TCP"
+      }
+    }
+
+    policy_types = ["Ingress"]
+  }
+}
+
 resource "kubernetes_network_policy_v1" "allow_jenkins_to_gateway_proxmox" {
   metadata {
     name      = "allow-jenkins-to-gateway-proxmox"
@@ -63,6 +102,12 @@ resource "kubernetes_network_policy_v1" "allow_jenkins_to_gateway_proxmox" {
       from {
         pod_selector {
           match_labels = { "app.kubernetes.io/component" = "jenkins-controller" }
+        }
+      }
+
+      from {
+        pod_selector {
+          match_labels = { "jenkins/jenkins-jenkins-agent" = "true" }
         }
       }
 

@@ -40,7 +40,7 @@ resource "kubectl_manifest" "isaac_postgres_cluster" {
 
       storage = {
         size         = "2Gi"
-        storageClass = "sbs-default"
+        storageClass = "longhorn"
       }
 
       bootstrap = {
