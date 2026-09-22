@@ -37,20 +37,25 @@ resource "helm_release" "monitoring" {
           storageSpec = {}
           additionalScrapeConfigs = [
             {
-              job_name = "demo-node-exporter"
+              # Fédération plutôt qu'un scrape direct de node-exporter :
+              # la Prometheus locale de demo-0 (deploy/monitoring-stack/)
+              # scrape déjà node-exporter/pve/blackbox pour ses propres
+              # dashboards. Sans fédération, la Prometheus K8s scrapait
+              # la même cible une deuxième fois, indépendamment (deux
+              # scrapes du même node-exporter, avec deux jeux de labels
+              # instance différents selon la Prometheus interrogée —
+              # source de confusion constatée en vrai). honor_labels
+              # préserve les labels d'origine (job, instance) tels que
+              # fixés dans deploy/monitoring-stack/prometheus/jobs/, donc
+              # aucun relabel à dupliquer ici.
+              job_name      = "federate-demo0"
+              honor_labels  = true
+              metrics_path  = "/federate"
+              params = {
+                "match[]" = ["up{job=~\"node-exporter|pve\"}"]
+              }
               static_configs = [
-                { targets = ["gateway.ci-cd.svc.cluster.local:9100"] }
-              ]
-              # Sans ce relabel, l'instance scrapée porte le nom du
-              # service K8s du relais (gateway.ci-cd.svc.cluster.local),
-              # une adresse de plomberie interne sans rapport avec la VM
-              # réellement surveillée. On la renomme avec l'identité de
-              # la cible réelle (192.168.1.5 = demo-0 sur Proxmox).
-              relabel_configs = [
-                {
-                  target_label = "instance"
-                  replacement  = "demo-0 (192.168.1.5)"
-                }
+                { targets = ["gateway.ci-cd.svc.cluster.local:9090"] }
               ]
             }
           ]
@@ -109,6 +114,15 @@ resource "helm_release" "monitoring" {
         sidecar = {
           dashboards = {
             folderAnnotation = "grafana_folder"
+            # Sans ça, le sidecar dépose bien le JSON dans un
+            # sous-dossier interne à son volume partagé, mais le
+            # provisioner Grafana par défaut ignore cette arborescence
+            # et importe quand même tout à plat dans le dossier General
+            # : constaté en vrai (dashboards visibles hors de tout
+            # dossier "PoC" malgré l'annotation grafana_folder posée).
+            provider = {
+              foldersFromFilesStructure = true
+            }
           }
         }
         additionalDataSources = [

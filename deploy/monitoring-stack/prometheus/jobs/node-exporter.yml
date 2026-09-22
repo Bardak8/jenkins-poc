@@ -3,3 +3,9 @@ scrape_configs:
     static_configs:
       - targets:
           - 192.168.1.5:9100
+    relabel_configs:
+      # Adresse lisible plutôt que l'IP brute : ce label est ensuite repris
+      # tel quel par la Prometheus K8s via fédération (honor_labels), donc
+      # fixé une seule fois ici plutôt que dans les deux configs.
+      - target_label: instance
+        replacement: "demo-0 (192.168.1.5)"

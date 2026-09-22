@@ -1,5 +1,5 @@
 {
-  "title": "PoC - Stack monitoring demo-0",
+  "title": "VM demo-0 (monitoring)",
   "uid": "poc-demo-0-stack",
   "tags": [
     "poc",
@@ -148,7 +148,7 @@
       "type": "timeseries",
       "gridPos": {
         "h": 8,
-        "w": 12,
+        "w": 8,
         "x": 12,
         "y": 6
       },
@@ -160,6 +160,27 @@
         {
           "expr": "(1 - (node_memory_MemAvailable_bytes{instance=\"$instance\"} / node_memory_MemTotal_bytes{instance=\"$instance\"})) * 100",
           "legendFormat": "Mémoire %"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Espace disque utilisé (%) - $instance",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 4,
+        "x": 20,
+        "y": 6
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "demo0-prometheus"
+      },
+      "targets": [
+        {
+          "expr": "(1 - (node_filesystem_avail_bytes{instance=\"$instance\", fstype!~\"tmpfs|overlay\"} / node_filesystem_size_bytes{instance=\"$instance\", fstype!~\"tmpfs|overlay\"})) * 100",
+          "legendFormat": "{{ mountpoint }}"
         }
       ]
     }

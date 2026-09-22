@@ -1282,7 +1282,7 @@
     ]
   },
   "timezone": "",
-  "title": "Proxmox via Prometheus",
+  "title": "Proxmox - Vue d'ensemble (toutes les VM)",
   "uid": "poc-proxmox-via-prometheus",
   "version": 3
 }
