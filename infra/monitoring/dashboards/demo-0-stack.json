@@ -46,6 +46,64 @@
   },
   "panels": [
     {
+      "id": 6,
+      "title": "Monitoring demo-0",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "up{job=\"federate-demo0\"}",
+          "legendFormat": "demo-0"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "DOWN",
+                  "color": "red"
+                }
+              }
+            },
+            {
+              "type": "value",
+              "options": {
+                "1": {
+                  "text": "UP",
+                  "color": "green"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": null,
+                "color": "red"
+              },
+              {
+                "value": 1,
+                "color": "green"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
       "id": 1,
       "title": "Proxmox API (pve-exporter)",
       "type": "stat",
@@ -53,7 +111,7 @@
         "h": 6,
         "w": 8,
         "x": 0,
-        "y": 0
+        "y": 6
       },
       "datasource": {
         "type": "prometheus",
@@ -106,7 +164,7 @@
         "h": 6,
         "w": 16,
         "x": 8,
-        "y": 0
+        "y": 6
       },
       "datasource": {
         "type": "prometheus",
@@ -129,7 +187,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 6
+        "y": 12
       },
       "datasource": {
         "type": "prometheus",
@@ -150,7 +208,7 @@
         "h": 8,
         "w": 8,
         "x": 12,
-        "y": 6
+        "y": 12
       },
       "datasource": {
         "type": "prometheus",
@@ -171,7 +229,7 @@
         "h": 8,
         "w": 4,
         "x": 20,
-        "y": 6
+        "y": 12
       },
       "datasource": {
         "type": "prometheus",

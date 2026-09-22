@@ -6,12 +6,16 @@
 # niveau du stockage bloc et redémarre sur un autre nœud avec ses
 # données intactes. Les deux survivent à la perte d'un nœud.
 #
-# CNPG protège volontairement son primaire d'une éviction gracieuse
-# (PodDisruptionBudget dédié) pour forcer un switchover contrôlé
-# plutôt qu'un drain sauvage : on simule donc un vrai crash par
-# suppression forcée du pod (bypass de l'API d'éviction), pas par
-# `kubectl drain`. Pour Jenkins, le drain classique suffit, rien ne
-# s'y oppose. `cordon`/`uncordon` uniquement, aucun nœud détruit.
+# Les deux simulent la même chose (perte brutale du nœud, pas une
+# maintenance planifiée) : suppression forcée du pod sans arrêt
+# propre (--grace-period=0 --force), jamais `kubectl drain`. Un vrai
+# drain évince TOUT ce qui tourne sur le nœud (Longhorn
+# instance-manager protégé par PDB, gateways WireGuard, monitoring...,
+# constaté en vrai) et fait un arrêt propre, pas un crash. CNPG
+# protège en plus son primaire d'une éviction gracieuse (PDB dédié)
+# pour forcer un switchover contrôlé : la suppression forcée
+# contourne aussi cette protection côté Postgres. `cordon`/`uncordon`
+# uniquement, aucun nœud détruit.
 set -euo pipefail
 
 export KUBECONFIG="$HOME/.kube/kubeconfig-k8s-jenkins-poc.yaml"
@@ -23,6 +27,12 @@ kubectl get pod jenkins-0 -n ci-cd -o wide
 PG_PRIMARY_POD=$(kubectl get cluster.postgresql.cnpg.io isaac-postgres -n apps -o jsonpath='{.status.currentPrimary}')
 PG_PRIMARY_NODE=$(kubectl get pod "$PG_PRIMARY_POD" -n apps -o jsonpath='{.spec.nodeName}')
 JENKINS_NODE=$(kubectl get pod jenkins-0 -n ci-cd -o jsonpath='{.spec.nodeName}')
+
+# Filet de sécurité : un Ctrl+C ou une erreur en cours de route laissait
+# des nœuds cordonnés indéfiniment (constaté en vrai, ça a bloqué
+# l'ordonnancement de TOUT le cluster au run suivant). Le trap garantit
+# l'uncordon quelle que soit la façon dont le script se termine.
+trap 'kubectl uncordon "$PG_PRIMARY_NODE" 2>/dev/null || true; kubectl uncordon "$JENKINS_NODE" 2>/dev/null || true' EXIT
 
 echo
 echo "==> Primaire isaac-postgres actuel : $PG_PRIMARY_POD (nœud $PG_PRIMARY_NODE)"
@@ -48,11 +58,11 @@ kubectl get pods -n apps -l cnpg.io/cluster=isaac-postgres -o wide
 echo
 echo "==> [2/2] Perte simulée du nœud de Jenkins ($JENKINS_NODE)"
 kubectl cordon "$JENKINS_NODE"
-kubectl drain "$JENKINS_NODE" --ignore-daemonsets --delete-emptydir-data --timeout=90s || true
+kubectl delete pod jenkins-0 -n ci-cd --grace-period=0 --force
 
 echo
 echo "==> Jenkins redémarre ailleurs, volume Longhorn rattaché depuis sa réplique :"
-kubectl wait --for=condition=Ready pod/jenkins-0 -n ci-cd --timeout=180s
+kubectl wait --for=condition=Ready pod/jenkins-0 -n ci-cd --timeout=300s
 kubectl get pod jenkins-0 -n ci-cd -o wide
 
 echo

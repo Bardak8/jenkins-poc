@@ -38,6 +38,16 @@ resource "kubectl_manifest" "isaac_postgres_cluster" {
     spec = {
       instances = 2
 
+      # "preferred" (défaut CNPG) autorise le scheduler à regrouper
+      # primaire et réplica sur le même nœud si ça l'arrange ; constaté
+      # en vrai après une bascule (les deux se sont retrouvés sur
+      # scw-k8s-jenkins-p-pool-par-2-great-maxw-92a559), ce qui annule
+      # la résilience à la perte d'un nœud. "required" l'interdit
+      # explicitement.
+      affinity = {
+        podAntiAffinityType = "required"
+      }
+
       storage = {
         size         = "2Gi"
         storageClass = "longhorn"

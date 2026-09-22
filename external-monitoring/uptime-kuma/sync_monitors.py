@@ -54,7 +54,7 @@ MONITORS = [
         "name": "Cluster Kubernetes",
         "type": "http",
         "url": "https://3e4d2ca8-f349-48e1-a37c-fca928340290.api.k8s.fr-par.scw.cloud:6443",
-        "interval": 60,
+        "interval": 20,
         "accepted_statuscodes": ["200-299", "300-399", "400-499"],
         # Le control plane Kapsule présente un certificat dont la chaîne
         # n'est pas dans le magasin de confiance par défaut : sans ça, la
@@ -66,21 +66,39 @@ MONITORS = [
         "name": "Jenkins",
         "type": "http",
         "url": "http://jenkins.obrypoc.fr:8080/login",
-        "interval": 60,
+        "interval": 20,
         "accepted_statuscodes": ["200-299"],
     },
     {
         "name": "Isaac-Api",
         "type": "http",
         "url": "https://isaac.obrypoc.fr",
+        "interval": 20,
+        "accepted_statuscodes": ["200-299"],
+    },
+    {
+        # Vrai « dead man's switch » : l'observateur est EXTERIEUR au systeme
+        # observe. Uptime Kuma tourne sur le poste, hors du cluster, et
+        # interroge Prometheus a travers le tunnel. Deux pannes couvertes :
+        #   - Prometheus ne repond plus du tout      -> moniteur DOWN
+        #   - il repond mais son horloge est figee   -> expression fausse, DOWN
+        # La regle WatchdogHeartbeatStale cote Prometheus ne couvre QUE le
+        # second cas : si Prometheus meurt, plus personne ne l'evalue.
+        "name": "Battement de coeur Prometheus",
+        "type": "json-query",
+        "url": "http://10.10.40.2:9090/api/v1/query?query=time()-jenkins_poc_watchdog_heartbeat_timestamp_seconds",
         "interval": 60,
         "accepted_statuscodes": ["200-299"],
+        # Uptime Kuma ne propose pas de comparateur dans cette version : on
+        # encode la comparaison dans l'expression JSONata elle-meme.
+        "jsonPath": "$number(data.result[0].value[1]) < 90",
+        "expectedValue": "true",
     },
     {
         "name": "Grafana",
         "type": "http",
         "url": "http://grafana.obrypoc.fr:3000",
-        "interval": 60,
+        "interval": 20,
         "accepted_statuscodes": ["200-299", "300-399"],
     },
     # Pas de moniteur "battement de coeur Prometheus" ici : ce check vit
@@ -95,7 +113,7 @@ MONITORS = [
 
 # Moniteurs à supprimer s'ils existent encore (config antérieure) :
 # leur rôle a été repris ailleurs, cf commentaire ci-dessus.
-OBSOLETE_MONITORS = ["Battement de coeur Prometheus"]
+OBSOLETE_MONITORS = []
 
 
 def build_payload(spec):

@@ -39,27 +39,52 @@ export KUBECONFIG="$HOME/.kube/kubeconfig-k8s-jenkins-poc.yaml"
 # Garde-fou Longhorn : refuse de se désinstaller tant que ce flag n'est
 # pas explicitement passé à true (anti-suppression-accidentelle).
 kubectl patch settings.longhorn.io deleting-confirmation-flag -n longhorn-system --type merge -p '{"value":"true"}' 2>/dev/null || true
-for module in relay jenkins cluster; do
+# L'ordre compte : tous les modules qui parlent au Kubernetes doivent être
+# détruits AVANT les pools de nœuds. Un cluster Kapsule sans aucun nœud
+# passe en statut "pool_required" et son endpoint d'API devient injoignable
+# (constaté en vrai : timeout puis "no such host" sur l'API) — les destroy
+# suivants échouaient alors tous. infra/cluster part donc en dernier.
+for module in relay jenkins; do
     echo "  -- infra/$module"
     (cd "$ROOT/infra/$module" && terraform destroy -auto-approve)
 done
 
 echo "  -- infra/monitoring (tout sauf le domaine mail)"
 (cd "$ROOT/infra/monitoring" && terraform destroy -auto-approve \
-    -target=kubernetes_config_map.dashboard_demo_poc \
     -target=kubernetes_config_map.dashboard_demo_stack \
     -target=kubernetes_config_map.dashboard_proxmox \
+    -target=kubernetes_config_map.dashboard_watchdog \
+    -target=kubernetes_config_map.dashboard_proxmox_vm_select \
     -target=kubernetes_ingress_v1.grafana \
     -target=helm_release.monitoring \
     -target=scaleway_iam_api_key.alerting_smtp \
     -target=scaleway_iam_policy.alerting_smtp \
     -target=scaleway_iam_application.alerting_smtp)
 
-echo "  -- infra/apps (tout sauf le registre)"
+echo "  -- infra/apps : d'abord le cluster Postgres, seul"
+(cd "$ROOT/infra/apps" && terraform destroy -auto-approve \
+    -target=kubectl_manifest.isaac_postgres_cluster)
+
+# Terraform rend la main dès que l'API accepte la suppression, mais CNPG
+# continue d'arrêter ses pods en arrière-plan. Si l'opérateur est détruit
+# pendant ce temps, plus personne ne retire le finaliseur pvc-protection
+# des volumes, et le namespace reste bloqué en Terminating indéfiniment
+# (constaté en vrai : destroy échoué sur "context deadline exceeded").
+echo "     attente de la disparition réelle des pods Postgres"
+for i in $(seq 1 60); do
+    PGPODS=$(kubectl get pods -n apps -l cnpg.io/cluster=isaac-postgres --no-headers 2>/dev/null | wc -l)
+    [ "${PGPODS:-0}" = "0" ] && break
+    echo "       ${PGPODS} pod(s) encore présent(s)"
+    sleep 5
+done
+# Filet : si des pods restent figés en Succeeded, ils bloquent leurs PVC.
+kubectl delete pods -n apps -l cnpg.io/cluster=isaac-postgres \
+    --grace-period=0 --force --ignore-not-found >/dev/null 2>&1 || true
+
+echo "  -- infra/apps (le reste, sauf le registre)"
 (cd "$ROOT/infra/apps" && terraform destroy -auto-approve \
     -target=helm_release.cnpg_operator \
     -target=kubernetes_secret.isaac_db_credentials_basic_auth \
-    -target=kubectl_manifest.isaac_postgres_cluster \
     -target=kubernetes_deployment.isaac_fansite \
     -target=kubernetes_service.isaac_fansite \
     -target=kubernetes_ingress_v1.isaac_fansite \
@@ -89,6 +114,9 @@ echo "  -- infra/ingress (tout sauf les IP réservées)"
     -target=scaleway_lb_backend.ingress_https \
     -target=scaleway_lb.ingress_secondary)
 
+echo "  -- infra/cluster (les pools de nœuds, en dernier : l'API devient injoignable ensuite)"
+(cd "$ROOT/infra/cluster" && terraform destroy -auto-approve)
+
 echo
 echo "==> [2/3] Cluster à 3 nœuds dès le premier apply (ha_enabled=true)"
 (cd "$ROOT/infra/cluster" && terraform apply -auto-approve -var="ha_enabled=true")
@@ -102,12 +130,26 @@ done
 
 echo
 
+echo "==> Attente que tout soit réellement en service"
+# Sans cette attente, la vérification ci-dessous s'affichait pendant que les
+# pods démarraient encore (Init/Pending) : la preuve de placement multi-zone
+# n'était donc pas visible à l'écran. On attend que CNPG ait ses 2 instances.
+kubectl rollout status statefulset/jenkins -n ci-cd --timeout=600s || true
+for i in $(seq 1 40); do
+    PGREADY=$(kubectl get cluster isaac-postgres -n apps -o jsonpath='{.status.readyInstances}' 2>/dev/null)
+    echo "  isaac-postgres : ${PGREADY:-0}/2 instances prêtes"
+    [ "${PGREADY:-0}" = "2" ] && break
+    sleep 15
+done
+
+echo
 echo "==> Nœuds (3 zones)"
 kubectl get nodes -L topology.kubernetes.io/zone
 
 echo
 echo "==> isaac-postgres (primaire + réplique, doivent être sur 2 nœuds différents)"
-kubectl get pods -n apps -l cnpg.io/cluster=isaac-postgres -o wide
+kubectl get pods -n apps -l cnpg.io/cluster=isaac-postgres \
+    -o custom-columns='NAME:.metadata.name,STATUS:.status.phase,NODE:.spec.nodeName,ROLE:.metadata.labels.role'
 
 echo
 "$ROOT/scripts/get-urls.sh"

@@ -1,0 +1,100 @@
+{
+  "title": "VM Proxmox (sélection)",
+  "uid": "poc-proxmox-vm-select",
+  "tags": ["poc", "bloc5", "proxmox"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "vm",
+        "type": "custom",
+        "query": "demo-0,demo-1,demo-2,outillage,VM 100",
+        "current": { "text": "demo-0", "value": "demo-0" },
+        "multi": false,
+        "includeAll": false
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "$vm",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "datasource", "uid": "-- Mixed --" },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "demo0-prometheus" },
+          "expr": "pve_up and on(id, instance) pve_guest_info{name=\"$vm\"}",
+          "legendFormat": "{{ id }}"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "label_replace(up{job=\"federate-demo0\"}, \"name\", \"demo-0\", \"\", \"\") and on(name) label_replace(vector(1), \"name\", \"$vm\", \"\", \"\")",
+          "legendFormat": "demo-0 (via federation K8s, si pve-exporter est mort avec la VM)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" } } },
+            { "type": "value", "options": { "1": { "text": "UP", "color": "green" } } }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "red" },
+              { "value": 1, "color": "green" }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "CPU utilisé (%) - $vm",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "demo0-prometheus" },
+      "targets": [
+        {
+          "expr": "(pve_cpu_usage_ratio / pve_cpu_usage_limit * 100) and on(id, instance) pve_guest_info{name=\"$vm\"}",
+          "legendFormat": "CPU %"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Mémoire utilisée (%) - $vm",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "demo0-prometheus" },
+      "targets": [
+        {
+          "expr": "(pve_memory_usage_bytes / pve_memory_size_bytes * 100) and on(id, instance) pve_guest_info{name=\"$vm\"}",
+          "legendFormat": "Mémoire %"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Disque utilisé (%) - $vm",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "demo0-prometheus" },
+      "targets": [
+        {
+          "expr": "(pve_disk_usage_bytes / pve_disk_size_bytes * 100) and on(id, instance) pve_guest_info{name=\"$vm\"}",
+          "legendFormat": "Disque %"
+        }
+      ]
+    }
+  ]
+}

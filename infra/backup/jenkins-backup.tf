@@ -36,6 +36,26 @@ resource "kubernetes_cron_job_v1" "jenkins_home_backup" {
           spec {
             restart_policy = "Never"
 
+            # jenkins-sbs est un volume Longhorn ReadWriteOnce, attaché
+            # au nœud où tourne jenkins-0 : sans cette affinité, le job
+            # atterrit parfois sur un autre nœud et reste bloqué
+            # indéfiniment sur "Waiting for detach... Volume is already
+            # used by pod(s) jenkins-0" (constaté en vrai). Colocalisé
+            # dynamiquement avec jenkins-0, où qu'il soit (survit à un
+            # failover), plutôt qu'un nœud codé en dur.
+            affinity {
+              pod_affinity {
+                required_during_scheduling_ignored_during_execution {
+                  label_selector {
+                    match_labels = {
+                      "app.kubernetes.io/component" = "jenkins-controller"
+                    }
+                  }
+                  topology_key = "kubernetes.io/hostname"
+                }
+              }
+            }
+
             init_container {
               name    = "tar"
               image   = "alpine:3.20"

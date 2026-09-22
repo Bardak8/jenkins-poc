@@ -21,8 +21,8 @@ set -euo pipefail
 export KUBECONFIG="$HOME/.kube/kubeconfig-k8s-jenkins-poc.yaml"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-PARALLEL=30
-DURATION=120
+PARALLEL=14
+DURATION=180
 POD="hpa-load-generator"
 
 echo "==> État initial"
@@ -32,7 +32,7 @@ kubectl get pods -n apps -l app=isaac-fansite
 echo
 echo "==> Lancement de la charge ($PARALLEL boucles curl en parallèle, namespace ingress-nginx)"
 kubectl run "$POD" -n ingress-nginx --image=curlimages/curl:8.10.1 --restart=Never -- \
-    /bin/sh -c "for i in \$(seq 1 $PARALLEL); do (while true; do curl -sk -o /dev/null -H 'Host: isaac.obrypoc.fr' https://ingress-nginx-controller.ingress-nginx.svc.cluster.local:443/; done) & done; sleep $DURATION" >/dev/null
+    /bin/sh -c "for i in \$(seq 1 $PARALLEL); do (while true; do curl -sk -o /dev/null -H 'Host: isaac.obrypoc.fr' https://ingress-nginx-controller.ingress-nginx.svc.cluster.local:443/; sleep 0.1; done) & done; sleep $DURATION" >/dev/null
 
 cleanup() {
     kubectl delete pod "$POD" -n ingress-nginx --ignore-not-found >/dev/null 2>&1 || true
@@ -46,7 +46,7 @@ for i in $(seq 1 $((DURATION / 10))); do
     kubectl get hpa isaac-fansite -n apps --no-headers
     REPLICAS=$(kubectl get deployment isaac-fansite -n apps -o jsonpath='{.status.replicas}')
     echo "  [$i] replicas actuels : $REPLICAS"
-    [ "$REPLICAS" -gt 2 ] && break
+    [ "$REPLICAS" -ge 5 ] && break
 done
 
 echo
@@ -59,4 +59,4 @@ cleanup
 trap - EXIT
 
 echo
-echo "Démo terminée : le HPA a réagi à la charge sans action manuelle. Le retour à 2 réplicas suit le délai de stabilisation par défaut de Kubernetes (5 min sans charge), pas la peine de rester devant."
+echo "Démo terminée : le HPA a réagi à la charge sans action manuelle."

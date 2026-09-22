@@ -32,6 +32,26 @@ kubectl wait --for=condition=Ready cluster.postgresql.cnpg.io/isaac-postgres -n 
 kubectl get cluster isaac-postgres -n apps
 
 echo
+echo "==> Preuve que la base recréée est bien vide (pas de triche, la destruction est réelle)"
+kubectl run pg-empty-check --image=postgres:18-alpine -n apps --restart=Never \
+    --labels="role=db-admin-access" \
+    --env="PGPASSWORD=$(kubectl get secret isaac-db-credentials -n apps -o jsonpath='{.data.password}' | base64 -d)" \
+    --command -- psql -h isaac-postgres-rw -U isaac -d isaac -c "select count(*) from favorites;" >/dev/null
+kubectl wait --for=jsonpath='{.status.phase}'=Succeeded pod/pg-empty-check -n apps --timeout=30s 2>/dev/null || true
+sleep 2
+echo "  -> résultat (une erreur 'relation does not exist' ou un count à 0 prouvent que c'est vide) :"
+kubectl logs pg-empty-check -n apps 2>&1 || true
+kubectl delete pod pg-empty-check -n apps --ignore-not-found >/dev/null 2>&1
+sleep 5
+
+echo
+echo "==> Preuve que le Jenkins recréé est bien vierge (pas d'historique de builds)"
+kubectl rollout status statefulset/jenkins -n ci-cd --timeout=180s || true
+sleep 5
+kubectl exec jenkins-0 -n ci-cd -c jenkins -- sh -c "ls /var/jenkins_home/jobs/deploy-isaac-app/builds/ 2>&1 || echo '  -> dossier de builds inexistant : Jenkins bien vierge'" || true
+sleep 5
+
+echo
 echo "==> [4/5] Restauration Jenkins depuis $BUCKET"
 kubectl scale statefulset jenkins -n ci-cd --replicas=0
 kubectl wait --for=delete pod -l app.kubernetes.io/component=jenkins-controller -n ci-cd --timeout=60s || true
@@ -86,6 +106,12 @@ kubectl delete pod restore-jenkins -n ci-cd
 
 kubectl scale statefulset jenkins -n ci-cd --replicas=1
 kubectl rollout status statefulset/jenkins -n ci-cd --timeout=180s
+sleep 5
+
+echo
+echo "==> Preuve que l'historique des builds est bien revenu"
+kubectl exec jenkins-0 -n ci-cd -c jenkins -- sh -c "ls /var/jenkins_home/jobs/deploy-isaac-app/builds/"
+sleep 8
 
 echo
 echo "==> [5/5] Restauration isaac-postgres depuis $BUCKET"
@@ -144,6 +170,12 @@ EOF
 kubectl wait --for=jsonpath='{.status.phase}'=Succeeded pod/restore-postgres -n apps --timeout=60s
 kubectl logs restore-postgres -n apps -c restore
 kubectl delete pod restore-postgres -n apps
+sleep 5
+
+echo
+echo "==> Preuve que les données sont revenues (BDD)"
+kubectl exec pg-client -n apps -- env PGPASSWORD="iDVGumhPi3BGP9KsI3tbocUc" psql -h isaac-postgres-rw -U isaac -d isaac -c "select id, title from favorites;"
+sleep 8
 
 echo
 echo "==> Vérification finale"

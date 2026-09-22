@@ -54,3 +54,41 @@ resource "kubernetes_config_map" "dashboard_watchdog" {
 
   depends_on = [helm_release.monitoring]
 }
+
+resource "kubernetes_config_map" "dashboard_proxmox_vm_select" {
+  metadata {
+    name      = "dashboard-proxmox-vm-select"
+    namespace = "monitoring"
+    labels = {
+      grafana_dashboard = "1"
+    }
+    annotations = {
+      grafana_folder = "PoC"
+    }
+  }
+
+  data = {
+    "proxmox-vm-select.json" = file("${path.module}/dashboards/proxmox-vm-select.json")
+  }
+
+  depends_on = [helm_release.monitoring]
+}
+
+resource "kubernetes_config_map" "dashboard_cluster_k8s" {
+  metadata {
+    name      = "dashboard-cluster-k8s"
+    namespace = "monitoring"
+    labels = {
+      grafana_dashboard = "1"
+    }
+    annotations = {
+      grafana_folder = "PoC"
+    }
+  }
+
+  data = {
+    "cluster-k8s.json" = file("${path.module}/dashboards/cluster-k8s.json")
+  }
+
+  depends_on = [helm_release.monitoring]
+}

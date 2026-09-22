@@ -1,0 +1,169 @@
+{
+  "title": "Cluster Kubernetes (PoC)",
+  "uid": "poc-cluster-k8s",
+  "tags": ["poc", "bloc5", "kubernetes"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Nœuds prêts",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(kube_node_status_condition{condition=\"Ready\",status=\"true\"})",
+          "legendFormat": "nœuds"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "red" },
+              { "value": 2, "color": "orange" },
+              { "value": 3, "color": "green" }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Jenkins",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "kube_statefulset_status_replicas_ready{statefulset=\"jenkins\",namespace=\"ci-cd\"}",
+          "legendFormat": "prêt"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "INDISPONIBLE", "color": "red" } } },
+            { "type": "value", "options": { "1": { "text": "EN SERVICE", "color": "green" } } }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "red" },
+              { "value": 1, "color": "green" }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Instances Postgres",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 6, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "count(kube_pod_info{namespace=\"apps\",pod=~\"isaac-postgres-.*\"})",
+          "legendFormat": "instances"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "red" },
+              { "value": 2, "color": "green" }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Cibles de collecte injoignables",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 6, "x": 18, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "count(up == 0) or vector(0)",
+          "legendFormat": "cibles"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "green" },
+              { "value": 1, "color": "red" }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "CPU utilisé par nœud (%)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 5 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "(1 - avg by(instance)(rate(node_cpu_seconds_total{mode=\"idle\",job=\"node-exporter\"}[5m]))) * 100",
+          "legendFormat": "{{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Mémoire utilisée par nœud (%)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 5 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "(1 - (node_memory_MemAvailable_bytes{job=\"node-exporter\"} / node_memory_MemTotal_bytes{job=\"node-exporter\"})) * 100",
+          "legendFormat": "{{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100
+        }
+      }
+    },
+    {
+      "id": 7,
+      "title": "Pods en fonctionnement, par namespace",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 13 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum by(namespace) (kube_pod_status_phase{phase=\"Running\",namespace=~\"ci-cd|apps|monitoring|ingress-nginx|longhorn-system\"})",
+          "legendFormat": "{{namespace}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "min": 0 }
+      }
+    }
+  ]
+}

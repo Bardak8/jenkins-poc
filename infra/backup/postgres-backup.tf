@@ -24,16 +24,31 @@ resource "kubernetes_cron_job_v1" "isaac_postgres_backup" {
         backoff_limit = 1
 
         template {
-          metadata {}
+          metadata {
+            # Sans ce label, la NetworkPolicy allow-to-isaac-postgres
+            # bloque la connexion : constaté en vrai, le job tournait
+            # depuis des nuits entières en timeout silencieux vers
+            # isaac-postgres-rw (Init:0/1 qui ne finit jamais).
+            labels = {
+              role = "db-admin-access"
+            }
+          }
           spec {
             restart_policy = "Never"
 
             init_container {
               name  = "pg-dump"
-              image = "postgres:16-alpine"
+              # Doit suivre la version majeure du serveur CNPG
+              # (postgresql:18.x) : pg_dump refuse de dumper un
+              # serveur plus récent que lui, et sans "set -e" cet
+              # échec passait inaperçu (gzip d'une entrée vide = un
+              # fichier "valide" de 20 octets uploadé quand même,
+              # constaté en vrai sur plusieurs nuits de sauvegardes
+              # isaac-postgres silencieusement vides).
+              image = "postgres:18-alpine"
               command = [
                 "sh", "-c",
-                "pg_dump -h isaac-postgres-rw -U \"$POSTGRES_USER\" -d isaac | gzip > /shared/isaac-dump.sql.gz"
+                "set -eo pipefail; pg_dump -h isaac-postgres-rw -U \"$POSTGRES_USER\" -d isaac | gzip > /shared/isaac-dump.sql.gz"
               ]
 
               env {
