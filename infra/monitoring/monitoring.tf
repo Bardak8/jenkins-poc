@@ -15,6 +15,18 @@ resource "helm_release" "monitoring" {
 
   values = [
     yamlencode({
+      # Composants de control plane non exposés sur un cluster Kapsule
+      # managé (Scaleway gère l'API server, le scheduler, le controller
+      # manager et etcd, jamais accessibles au tenant) : sans ces
+      # désactivations, kube-prometheus-stack tente quand même de les
+      # scraper et déclenche des alertes en permanence pour des
+      # composants qui n'existeront jamais dans la découverte de
+      # cibles, faux positifs perpétuels constatés en vrai (Cilium
+      # remplace aussi kube-proxy ici, mode kube-proxy replacement).
+      kubeScheduler         = { enabled = false }
+      kubeControllerManager = { enabled = false }
+      kubeProxy             = { enabled = false }
+      kubeEtcd              = { enabled = false }
       prometheus = {
         prometheusSpec = {
           retention = "6h"
@@ -29,6 +41,17 @@ resource "helm_release" "monitoring" {
               static_configs = [
                 { targets = ["gateway.ci-cd.svc.cluster.local:9100"] }
               ]
+              # Sans ce relabel, l'instance scrapée porte le nom du
+              # service K8s du relais (gateway.ci-cd.svc.cluster.local),
+              # une adresse de plomberie interne sans rapport avec la VM
+              # réellement surveillée. On la renomme avec l'identité de
+              # la cible réelle (192.168.1.5 = demo-0 sur Proxmox).
+              relabel_configs = [
+                {
+                  target_label = "instance"
+                  replacement  = "demo-0 (192.168.1.5)"
+                }
+              ]
             }
           ]
         }
@@ -42,7 +65,12 @@ resource "helm_release" "monitoring" {
         }
         config = {
           global = {
-            smtp_smarthost   = "${scaleway_tem_domain.alerts.smtp_host}:${scaleway_tem_domain.alerts.smtp_port}"
+            # Port 587 (documenté par défaut) est bloqué en sortie depuis
+            # Kapsule, comme la plupart des clouds bloquent les ports
+            # SMTP sortants par défaut, anti-spam. 2587 est le port de
+            # secours de Scaleway pour ce cas précis, vérifié en vrai
+            # (banner SMTP + STARTTLS confirmés) avant ce changement.
+            smtp_smarthost   = "${scaleway_tem_domain.alerts.smtp_host}:2587"
             smtp_from        = "alerting@${scaleway_tem_domain.alerts.name}"
             smtp_auth_username = scaleway_tem_domain.alerts.smtps_auth_user
             smtp_auth_password = scaleway_iam_api_key.alerting_smtp.secret_key

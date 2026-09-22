@@ -7,3 +7,23 @@ groups:
 
       - record: jenkins_poc_watchdog_up
         expr: vector(1)
+
+      # Alerte native Prometheus/Alertmanager (routée par email, voir
+      # alerting.tf et monitoring.tf) : détecte que la chaîne de
+      # collecte elle-même s'est arrêtée d'avancer, pas juste que
+      # Prometheus répond. Seuil : 3x l'intervalle d'évaluation de
+      # 30s, marge contre la gigue normale. Grafana/Alertmanager porte
+      # ce check en interne car c'est lui qui fédère tous les
+      # Prometheus (plusieurs en production réelle) ; ne concerne que
+      # ce point précis, pas les autres moniteurs externes (Uptime
+      # Kuma reste nécessaire pour ce que Grafana ne peut pas voir sur
+      # lui-même : sa propre disponibilité, Jenkins, le tunnel VPN,
+      # l'API Scaleway).
+      - alert: WatchdogHeartbeatStale
+        expr: time() - jenkins_poc_watchdog_heartbeat_timestamp_seconds > 90
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "La chaîne de collecte Prometheus ne progresse plus"
+          description: "Le battement de coeur n'a pas avancé depuis plus de 90 secondes : Prometheus tourne peut-être encore, mais son évaluation de règles est bloquée (disque plein, deadlock interne, etc.)."
