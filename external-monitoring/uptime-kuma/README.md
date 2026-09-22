@@ -2,7 +2,7 @@
 
 Volontairement en dehors de Terraform et du cluster Scaleway : l'intérêt de ce point de contrôle est justement d'être indépendant de l'infra qu'il surveille. Si Prometheus/Alertmanager (dans le cluster) tombent avec le cluster, ils ne peuvent plus alerter sur leur propre panne. Uptime Kuma tourne sur un poste externe (ici, le poste de Maxime), donc il survit à une panne du cluster ou de Scaleway en général.
 
-Limite assumée : ne tourne que quand le poste est allumé. Pas un vrai 24/7, ce qui serait le cas en production sur une infra tierce indépendante.
+Choix de poste assumé : héberger ce point de contrôle sur un tiers de confiance dédié et toujours disponible (au lieu du poste de travail de Maxime) est ce qu'impliquerait un vrai déploiement en production.
 
 ## Lancer
 
@@ -11,7 +11,9 @@ cd external-monitoring/uptime-kuma
 docker compose up -d
 ```
 
-Interface sur `http://localhost:3001`. Premier lancement : créer le compte admin depuis le navigateur.
+Interface sur `http://localhost:3001`. Premier lancement : créer le compte admin depuis le navigateur, puis synchroniser les moniteurs avec le script fourni (voir plus bas) plutôt que de les recréer à la main.
+
+Mot de passe oublié : `docker exec -i uptime-kuma npm run reset-password` est interactif et peut se bloquer selon le terminal utilisé pour lancer `docker exec` ; en cas de blocage, redémarrer le conteneur (`docker restart uptime-kuma`) et réessayer suffit généralement.
 
 ## Moniteurs à configurer
 
@@ -24,17 +26,19 @@ Interface sur `http://localhost:3001`. Premier lancement : créer le compte admi
 
 Le moniteur "Cluster Kubernetes" est le plus important des quatre : il détecte à la fois une panne du cluster et une panne générale Scaleway, sans dépendre d'aucun état applicatif (Jenkins, ingress, etc.).
 
-## Battement de cœur Prometheus (moniteur 5, type "HTTP(s) - Json Query")
+## Répartition des rôles avec Grafana
 
-Contrairement aux 4 moniteurs ci-dessus, celui-ci ne vérifie pas qu'un service répond, mais que la chaîne de collecte elle-même est encore vivante : `infra/monitoring/rules/watchdog.yml` fait produire en continu à Prometheus un horodatage (`jenkins_poc_watchdog_heartbeat_timestamp_seconds = time()`). Si ce chiffre cesse d'avancer, Prometheus a un problème même si le pod tourne encore (blocage interne, disque plein, etc.) : un simple ping HTTP 200 sur Grafana ne le détecterait pas, puisque Grafana peut très bien répondre pendant que sa donnée est figée.
+Uptime Kuma ne couvre volontairement que ce que Grafana ne peut pas voir sur lui-même : sa propre disponibilité (Grafana peut très bien être en panne sans que rien à l'intérieur du cluster ne puisse le signaler), Jenkins, le tunnel VPN nécessaire pour les joindre, et l'API Scaleway (en dehors de toute la chaîne d'observabilité, confirme que l'infra cloud elle-même est vivante).
 
-C'est délibérément Uptime Kuma qui porte cette vérification, pas Grafana lui-même : Grafana et ce Prometheus vivent sur le même cluster, donc une alerte hébergée dans Grafana mourrait avec la panne qu'elle est censée détecter. Uptime Kuma, externe, reste le seul point réellement indépendant du système qu'il observe.
+Tout ce qui concerne la vivacité de la chaîne de collecte elle-même — est-ce que Prometheus évalue encore vraiment ses règles, pas juste "le pod répond" — reste dans Grafana/Alertmanager : alerte `WatchdogHeartbeatStale` (`infra/monitoring/rules/watchdog.yml`), basée sur un battement de cœur que Prometheus produit en continu (`jenkins_poc_watchdog_heartbeat_timestamp_seconds = time()`), envoyée par e-mail via Alertmanager (`infra/monitoring/monitoring.tf`, `alerting.tf`). C'est le rôle naturel de Grafana : c'est lui qui fédère les sources Prometheus (plusieurs en production réelle, une par cluster), pas un outil externe générique. Uptime Kuma n'a donc pas de moniteur dédié à ça.
 
-| Champ | Valeur |
-|---|---|
-| URL | `http://10.10.40.2:9090/api/v1/query?query=time()-jenkins_poc_watchdog_heartbeat_timestamp_seconds` |
-| Json Query Expression | `$.data.result[0].value[1]` |
-| Condition | `<` (inférieur à) |
-| Valeur attendue | `90` (3x l'intervalle d'évaluation de 30s, marge contre la gigue normale) |
+## Configuration as code
 
-Comme Jenkins et Grafana, uniquement joignable via le VPN du relais (le port 9090 est exposé par `collab-gateway`, `infra/jenkins/collab-gateway.tf`).
+`sync_monitors.py` crée ou met à jour les 4 moniteurs ci-dessus en un appel, via l'API Socket.IO d'Uptime Kuma (le wrapper pip `uptime-kuma-api` a un bug d'attente d'événement avec le serveur 1.23.x, contourné en parlant directement le protocole Socket.IO) :
+
+```bash
+python3 -m venv .venv && .venv/bin/pip install python-socketio requests
+KUMA_PASSWORD=xxx .venv/bin/python3 sync_monitors.py
+```
+
+Idempotent : relançable à volonté, met à jour les moniteurs existants (identifiés par leur nom) au lieu de les dupliquer.
