@@ -13,7 +13,7 @@
         "name": "instance",
         "type": "query",
         "datasource": null,
-        "query": "label_values(up{job=~\".*node.*\"}, instance)",
+        "query": "label_values(up{job=\"demo-node-exporter\"}, instance)",
         "refresh": 1,
         "sort": 1,
         "multi": false,
@@ -30,7 +30,7 @@
       "datasource": null,
       "targets": [
         {
-          "expr": "up{job=~\".*node.*\", instance=\"$instance\"}",
+          "expr": "up{job=\"demo-node-exporter\", instance=\"$instance\"}",
           "legendFormat": "up"
         }
       ],
