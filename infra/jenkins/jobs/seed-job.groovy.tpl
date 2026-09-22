@@ -87,13 +87,20 @@ pipelineJob('deploy-isaac-app') {
                             value('$.release.tag_name')
                         }
                         genericVariable {
-                            key('ACTION')
+                            // Nommé WEBHOOK_ACTION, pas ACTION : le pipeline a
+                            // son propre paramètre choice nommé ACTION
+                            // (build-and-deploy/build-only/deploy-only) ;
+                            // avec le même nom ici, la valeur brute du
+                            // webhook ("published") écrasait ce paramètre et
+                            // faisait sauter les deux stages (when
+                            // conditional jamais vrai), constaté en vrai.
+                            key('WEBHOOK_ACTION')
                             value('$.action')
                         }
                     }
                     token('${isaac_webhook_token}')
                     causeString('Release $RELEASE_TAG publiée sur Isaac-Api')
-                    regexpFilterText('$ACTION')
+                    regexpFilterText('$WEBHOOK_ACTION')
                     regexpFilterExpression('^published$')
                     printPostContent(false)
                     printContributedVariables(false)
