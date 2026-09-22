@@ -1,16 +1,20 @@
 #!/usr/bin/env bash
 # Scénario vidéo : pipeline CI/CD bout-en-bout, déclenché par une vraie
 # release GitHub (pas un déclenchement manuel via l'API Jenkins).
-# Prérequis : `gh auth login` fait au préalable, et la variable
-# JENKINS_ADMIN_PASSWORD exportée (voir infra/jenkins/terraform.tfvars).
+# Prérequis : GH_TOKEN exporté (personal access token à portée
+# restreinte, "Only select repositories" -> Bardak8/Isaac-Api
+# uniquement, permission "Contents: Read and write" -- jamais un token
+# large sur tout le compte), et JENKINS_ADMIN_PASSWORD exporté (voir
+# infra/jenkins/terraform.tfvars). Appel direct à l'API REST GitHub en
+# curl, pas de dépendance à gh CLI.
 set -euo pipefail
 
 REPO="Bardak8/Isaac-Api"
 TAG="demo-$(date +%Y%m%d%H%M%S)"
 JENKINS_URL="http://jenkins.obrypoc.fr:8080"
 
-if ! command -v gh >/dev/null; then
-    echo "gh (GitHub CLI) est requis : https://cli.github.com/"
+if [ -z "${GH_TOKEN:-}" ]; then
+    echo "Exporter GH_TOKEN (personal access token restreint à $REPO) avant de lancer ce script."
     exit 1
 fi
 
@@ -24,8 +28,18 @@ curl -sk https://isaac.obrypoc.fr/ | grep -o '<title>[^<]*</title>' || true
 
 echo
 echo "==> [2/4] Publication d'une release GitHub sur $REPO ($TAG)"
-gh release create "$TAG" --repo "$REPO" --title "Démo $TAG" \
-    --notes "Déclenchement automatique du pipeline Jenkins via webhook" --target main
+HTTP_CODE=$(curl -s -o /tmp/gh-release-response.json -w "%{http_code}" \
+    -X POST "https://api.github.com/repos/$REPO/releases" \
+    -H "Authorization: Bearer $GH_TOKEN" \
+    -H "Accept: application/vnd.github+json" \
+    -H "X-GitHub-Api-Version: 2022-11-28" \
+    -d "{\"tag_name\":\"$TAG\",\"target_commitish\":\"main\",\"name\":\"Démo $TAG\",\"body\":\"Déclenchement automatique du pipeline Jenkins via webhook\"}")
+if [ "$HTTP_CODE" != "201" ]; then
+    echo "Échec création release (HTTP $HTTP_CODE) :"
+    cat /tmp/gh-release-response.json
+    exit 1
+fi
+echo "Release $TAG créée."
 
 echo
 echo "==> [3/4] Attente du déclenchement du webhook et suivi du build"
@@ -46,9 +60,7 @@ echo "==> [4/4] Site après déploiement (nouvelle image, tag $TAG)"
 sleep 5
 curl -sk https://isaac.obrypoc.fr/ | grep -o '<title>[^<]*</title>' || true
 
-export KUBECONFIG=$(mktemp)
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-(cd "$ROOT/infra/jenkins" && SCW_PROFILE=newprofile terraform output -raw kubeconfig > "$KUBECONFIG")
+export KUBECONFIG="$HOME/.kube/kubeconfig-k8s-jenkins-poc.yaml"
 kubectl get deployment isaac-fansite -n apps -o jsonpath='{.spec.template.spec.containers[0].image}'; echo
 
 echo

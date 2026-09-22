@@ -1,27 +1,47 @@
 #!/usr/bin/env bash
 # Scénario vidéo : scalabilité applicative horizontale (infra/apps/autoscaling.tf).
-# Génère une charge CPU sur isaac-fansite depuis un pod dédié, observe le
-# HorizontalPodAutoscaler créer des réplicas supplémentaires en réponse,
-# puis nettoie. La bascule retour (scale-down) suit son propre délai de
-# stabilisation Kubernetes (quelques minutes), pas attendue ici.
+# Génère une charge sur isaac-fansite depuis un pod dans le namespace
+# ingress-nginx (seule source autorisée par la NetworkPolicy vers
+# isaac-fansite, infra/apps/network-policies.tf), en HTTPS direct contre
+# le service interne du contrôleur ingress-nginx. Observe le
+# HorizontalPodAutoscaler créer des réplicas supplémentaires, puis
+# nettoie.
+#
+# Pourquoi ce chemin précis, pas un pod générique ni le chemin public :
+# - un pod de charge dans le namespace apps est bloqué par la
+#   NetworkPolicy, comportement voulu, pas un bug à contourner ;
+# - le port 80 de l'ingress redirige en 308 vers HTTPS sans jamais
+#   atteindre le pod applicatif (aucune charge réelle générée) ;
+# - le chemin public (poste -> Internet -> LB) marche mais sa charge
+#   réelle est trop variable (latence/TLS côté client) pour un
+#   déclenchement fiable en enregistrement ; en direct dans le cluster,
+#   en HTTPS, c'est rapide et reproductible.
 set -euo pipefail
 
-export KUBECONFIG=$(mktemp)
+export KUBECONFIG="$HOME/.kube/kubeconfig-k8s-jenkins-poc.yaml"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-(cd "$ROOT/infra/jenkins" && SCW_PROFILE=newprofile terraform output -raw kubeconfig > "$KUBECONFIG")
+
+PARALLEL=30
+DURATION=120
+POD="hpa-load-generator"
 
 echo "==> État initial"
 kubectl get hpa isaac-fansite -n apps
 kubectl get pods -n apps -l app=isaac-fansite
 
 echo
-echo "==> Lancement du générateur de charge (10 boucles wget en parallèle, namespace apps)"
-kubectl run load-generator -n apps --image=busybox:1.36 --restart=Never -- \
-    /bin/sh -c 'for i in $(seq 1 10); do (while true; do wget -q -O- http://isaac-fansite:8080/ >/dev/null; done) & done; wait'
+echo "==> Lancement de la charge ($PARALLEL boucles curl en parallèle, namespace ingress-nginx)"
+kubectl run "$POD" -n ingress-nginx --image=curlimages/curl:8.10.1 --restart=Never -- \
+    /bin/sh -c "for i in \$(seq 1 $PARALLEL); do (while true; do curl -sk -o /dev/null -H 'Host: isaac.obrypoc.fr' https://ingress-nginx-controller.ingress-nginx.svc.cluster.local:443/; done) & done; sleep $DURATION" >/dev/null
+
+cleanup() {
+    kubectl delete pod "$POD" -n ingress-nginx --ignore-not-found >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
 
 echo
-echo "==> Surveillance du HPA (jusqu'à 5 min, contrôle toutes les 10s)"
-for i in $(seq 1 30); do
+echo "==> Surveillance du HPA (jusqu'à ${DURATION}s, contrôle toutes les 10s)"
+for i in $(seq 1 $((DURATION / 10))); do
     sleep 10
     kubectl get hpa isaac-fansite -n apps --no-headers
     REPLICAS=$(kubectl get deployment isaac-fansite -n apps -o jsonpath='{.status.replicas}')
@@ -34,8 +54,9 @@ echo "==> Pods isaac-fansite après charge"
 kubectl get pods -n apps -l app=isaac-fansite
 
 echo
-echo "==> Arrêt du générateur de charge"
-kubectl delete pod load-generator -n apps --ignore-not-found
+echo "==> Arrêt de la charge"
+cleanup
+trap - EXIT
 
 echo
-echo "Démo terminée : le HPA a réagi à la charge CPU sans action manuelle. Le retour à 2 réplicas suit le délai de stabilisation par défaut de Kubernetes (5 min sans charge) une fois le générateur arrêté, pas la peine de rester devant."
+echo "Démo terminée : le HPA a réagi à la charge sans action manuelle. Le retour à 2 réplicas suit le délai de stabilisation par défaut de Kubernetes (5 min sans charge), pas la peine de rester devant."

@@ -1,11 +1,17 @@
 #!/usr/bin/env bash
-# Scénario vidéo : contraste de résilience entre isaac-postgres
-# (CloudNativePG, réplication applicative) et Jenkins (instance unique,
-# stockage verrouillé à sa zone). Nécessite ha_enabled=true (3 nœuds,
-# un par zone) — voir demo-scratch-build.sh ou demo-ha-on.sh.
-# Utilise `kubectl drain` (réversible via uncordon), pas de destruction
-# réelle de nœud : le mécanisme de blocage (PersistentVolume verrouillé
-# à sa zone) est identique dans les deux cas.
+# Scénario vidéo : deux mécanismes de résilience différents, chacun
+# adapté à la nature du composant. isaac-postgres (CloudNativePG)
+# réplique en continu au niveau applicatif et bascule par promotion
+# du réplica synchronisé. Jenkins (Longhorn) réplique le volume au
+# niveau du stockage bloc et redémarre sur un autre nœud avec ses
+# données intactes. Les deux survivent à la perte d'un nœud.
+#
+# CNPG protège volontairement son primaire d'une éviction gracieuse
+# (PodDisruptionBudget dédié) pour forcer un switchover contrôlé
+# plutôt qu'un drain sauvage : on simule donc un vrai crash par
+# suppression forcée du pod (bypass de l'API d'éviction), pas par
+# `kubectl drain`. Pour Jenkins, le drain classique suffit, rien ne
+# s'y oppose. `cordon`/`uncordon` uniquement, aucun nœud détruit.
 set -euo pipefail
 
 export KUBECONFIG="$HOME/.kube/kubeconfig-k8s-jenkins-poc.yaml"
@@ -23,10 +29,9 @@ echo "==> Primaire isaac-postgres actuel : $PG_PRIMARY_POD (nœud $PG_PRIMARY_NO
 echo "==> Jenkins actuellement sur : $JENKINS_NODE"
 
 echo
-echo "==> [1/3] Coupure du nœud du primaire isaac-postgres ($PG_PRIMARY_NODE)"
+echo "==> [1/2] Perte simulée du nœud du primaire isaac-postgres ($PG_PRIMARY_NODE)"
 kubectl cordon "$PG_PRIMARY_NODE"
-kubectl drain "$PG_PRIMARY_NODE" --ignore-daemonsets --delete-emptydir-data --timeout=120s &
-DRAIN_PID=$!
+kubectl delete pod "$PG_PRIMARY_POD" -n apps --grace-period=0 --force
 
 echo "==> Surveillance du site pendant la bascule (30 x 2s)"
 for i in $(seq 1 30); do
@@ -35,34 +40,25 @@ for i in $(seq 1 30); do
     sleep 2
 done
 
-wait "$DRAIN_PID" || true
-
 NEW_PRIMARY=$(kubectl get cluster.postgresql.cnpg.io isaac-postgres -n apps -o jsonpath='{.status.currentPrimary}')
 echo
-echo "==> Nouveau primaire : $NEW_PRIMARY (bascule automatique CloudNativePG, sans action manuelle)"
+echo "==> Nouveau primaire : $NEW_PRIMARY (promotion automatique CloudNativePG, sans action manuelle)"
 kubectl get pods -n apps -l cnpg.io/cluster=isaac-postgres -o wide
 
 echo
-echo "==> [2/3] Coupure du nœud de Jenkins ($JENKINS_NODE), même mécanisme"
+echo "==> [2/2] Perte simulée du nœud de Jenkins ($JENKINS_NODE)"
 kubectl cordon "$JENKINS_NODE"
-kubectl drain "$JENKINS_NODE" --ignore-daemonsets --delete-emptydir-data --timeout=60s || true
+kubectl drain "$JENKINS_NODE" --ignore-daemonsets --delete-emptydir-data --timeout=90s || true
 
 echo
-echo "==> Jenkins reste bloqué : le volume (sbs-default) est verrouillé à sa zone, aucun autre nœud de la même zone n'est disponible"
-kubectl get pod jenkins-0 -n ci-cd
-echo
-echo "==> Événement attendu : node affinity conflict"
-kubectl get events -n ci-cd --field-selector involvedObject.name=jenkins-0 --sort-by='.lastTimestamp' | tail -5
+echo "==> Jenkins redémarre ailleurs, volume Longhorn rattaché depuis sa réplique :"
+kubectl wait --for=condition=Ready pod/jenkins-0 -n ci-cd --timeout=180s
+kubectl get pod jenkins-0 -n ci-cd -o wide
 
 echo
-echo "==> [3/3] Remise en service des deux nœuds"
+echo "==> Remise en service des nœuds"
 kubectl uncordon "$PG_PRIMARY_NODE"
 kubectl uncordon "$JENKINS_NODE"
 
 echo
-echo "==> Jenkins revient sur son nœud d'origine (seul nœud de sa zone) :"
-kubectl wait --for=condition=Ready pod/jenkins-0 -n ci-cd --timeout=120s
-kubectl get pod jenkins-0 -n ci-cd -o wide
-
-echo
-echo "Contraste terminé : isaac-postgres a basculé seul en quelques secondes, Jenkins est resté bloqué jusqu'au retour du nœud."
+echo "Les deux composants ont survécu à la perte de leur nœud : isaac-postgres par promotion de réplica, Jenkins par redémarrage sur un volume répliqué."

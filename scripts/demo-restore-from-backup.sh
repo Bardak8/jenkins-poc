@@ -7,13 +7,15 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export SCW_PROFILE="newprofile"
-export KUBECONFIG=$(mktemp)
-(cd "$ROOT/infra/jenkins" && terraform output -raw kubeconfig > "$KUBECONFIG")
+export KUBECONFIG="$HOME/.kube/kubeconfig-k8s-jenkins-poc.yaml"
 
 BUCKET="jenkins-poc-backups"
 S3_ENDPOINT="https://s3.fr-par.scw.cloud"
 
 echo "==> [1/5] Destruction de Jenkins et isaac-postgres (simule une perte totale)"
+# Garde-fou Longhorn : refuse de se désinstaller tant que ce flag n'est
+# pas explicitement passé à true (anti-suppression-accidentelle).
+kubectl patch settings.longhorn.io deleting-confirmation-flag -n longhorn-system --type merge -p '{"value":"true"}' || true
 (cd "$ROOT/infra/jenkins" && terraform destroy -auto-approve)
 (cd "$ROOT/infra/apps" && terraform destroy -auto-approve \
     -target=kubectl_manifest.isaac_postgres_cluster \
@@ -93,6 +95,8 @@ kind: Pod
 metadata:
   name: restore-postgres
   namespace: apps
+  labels:
+    role: db-admin-access
 spec:
   restartPolicy: Never
   initContainers:
